@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -27,6 +27,7 @@
     "eslint": "^7.1.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.20.2",
+    "jest": "^26.1.0",
     "nodemon": "^2.0.4"
   }
 }
