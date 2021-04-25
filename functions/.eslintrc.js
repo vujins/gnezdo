@@ -7,11 +7,14 @@ module.exports = {
   },
   extends: [
     'eslint:recommended',
-    'google',
     'plugin:jest/recommended',
   ],
   plugins: ['jest'],
   rules: {
     'linebreak-style': 0,
+  },
+  parserOptions: {
+    ecmaVersion: 12,
+    sourceType: 'module',
   },
 };

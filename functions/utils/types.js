@@ -1,5 +1,5 @@
 
-const typeEnum = Object.freeze({
+const types = Object.freeze({
   houseSale: 'house-sale',
   houseRent: 'house-rent',
   apartmentSale: 'apartment-sale',
@@ -8,4 +8,4 @@ const typeEnum = Object.freeze({
   landRent: 'land-rent',
 });
 
-module.exports = typeEnum;
+module.exports = types;
