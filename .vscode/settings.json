@@ -1,13 +1,8 @@
 {
-    "files.eol": "\n",
-
+    "files.eol": "\r\n",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true
-    },
-    
-    "eslint.format.enable": true,
+    "editor.formatOnSave": true,
     "[javascript]": {
         "editor.defaultFormatter": "dbaeumer.vscode-eslint"
     },
