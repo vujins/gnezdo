@@ -13,7 +13,7 @@ const halooglasiHouseRent = halooglasiLandRentRent + 'kuca';
 const halooglasiLandSale = halooglasiSale + 'zemljista';
 const halooglasiLandRent = halooglasiLandRentRent + 'zemljista';
 
-const url = {
+const url = Object.freeze({
   halooglasi: {
     baseUrl: halooglasiBaseUrl,
     houseSale: halooglasiHouseSale,
@@ -23,6 +23,6 @@ const url = {
     landSale: halooglasiLandSale,
     landRent: halooglasiLandRent,
   },
-};
+});
 
 module.exports = url;
