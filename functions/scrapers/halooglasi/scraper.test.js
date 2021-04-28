@@ -1,6 +1,7 @@
 // const scrape = require('./scraper');
-const { scrapeItem, getList, scrapeList } = require('./scraper');
+const { scrapeItem, getList, scrapeList, scrape } = require('./scraper');
 const types = require('../../utils/types');
+const URL = require('../../utils/url');
 
 
 describe('halooglasi scraper', () => {
@@ -42,24 +43,73 @@ describe('halooglasi scraper', () => {
   });
 
   it('getList has 20 items', async () => {
-    const url = 'https://www.halooglasi.com/nekretnine/prodaja-kuca/';
-    await expect(getList(url)).resolves.toHaveLength(20);
+    await expect(getList(URL.halooglasi[types.houseSale])).resolves.toHaveLength(20);
+  });
+
+  it('getList has 20 items for all urls', () => {
+    const results = [];
+    Object.values(types).forEach((type) => {
+      results.push(getList(URL.halooglasi[type]));
+    });
+    return Promise.all(results).then(rezs => {
+      expect(rezs.flat()).toHaveLength(Object.values(types).length * 20);
+    })
   });
 
   it('getList should return urls', async () => {
-    const url = 'https://www.halooglasi.com/nekretnine/prodaja-kuca/';
     const expectedArray = Array(20).fill(expect.any(String));
-    await expect(getList(url)).resolves.toEqual(expect.arrayContaining(expectedArray));
+    await expect(getList(URL.halooglasi[types.houseSale])).resolves.toEqual(expect.arrayContaining(expectedArray));
   });
 
-  it('scrapeList returns 20 items in array', async () => {
-    const url = 'https://www.halooglasi.com/nekretnine/prodaja-kuca/';
-    await expect(scrapeList(url, types.houseSale)).resolves.toHaveLength(20);
+
+  it('getList should return urls for all property types', () => {
+    const expectedArray = Array(Object.values(types).length).fill(expect.any(String));
+    const results = [];
+    Object.values(types).forEach((type) => {
+      results.push(getList(URL.halooglasi[type]));
+    });
+    return Promise.all(results).then(rezs => {
+      expect(rezs.flat()).toEqual(expect.arrayContaining(expectedArray));
+    })
+  });
+
+  it('scrapeList returns 20 items in array for houseSale', async () => {
+    await expect(scrapeList(URL.halooglasi[types.houseSale], types.houseSale)).resolves.toHaveLength(20);
+  });
+  it('scrapeList returns 20 items in array for houseRent', async () => {
+    await expect(scrapeList(URL.halooglasi[types.houseRent], types.houseRent)).resolves.toHaveLength(20);
+  });
+  it('scrapeList returns 20 items in array for apartmentSale', async () => {
+    await expect(scrapeList(URL.halooglasi[types.apartmentSale], types.apartmentSale)).resolves.toHaveLength(20);
+  });
+  it('scrapeList returns 20 items in array for apartmentRent', async () => {
+    await expect(scrapeList(URL.halooglasi[types.apartmentRent], types.apartmentRent)).resolves.toHaveLength(20);
+  });
+  it('scrapeList returns 20 items in array for landSale', async () => {
+    await expect(scrapeList(URL.halooglasi[types.landSale], types.landSale)).resolves.toHaveLength(20);
+  });
+  it('scrapeList returns 20 items in array for landRent', async () => {
+    await expect(scrapeList(URL.halooglasi[types.landRent], types.landRent)).resolves.toHaveLength(20);
+  });
+
+  // eslint-disable-next-line jest/no-disabled-tests
+  it.skip('scrapeList returns 20 items in array for every property', () => {
+    const results = [];
+    Object.values(types).forEach((type) => {
+      results.push(scrapeList(URL.halooglasi[type], type));
+    });
+    return Promise.all(results).then(rezs => {
+      expect(rezs.flat()).toHaveLength(Object.values(types).length * 20);
+    })
   });
 
   it('scrapeList returns 20 property items', async () => {
-    const url = 'https://www.halooglasi.com/nekretnine/prodaja-kuca/';
     const expectedArray = Array(20).fill(expectedPropertyObject);
-    await expect(scrapeList(url, types.houseSale)).resolves.toEqual(expect.arrayContaining(expectedArray));
+    await expect(scrapeList(URL.halooglasi[types.houseSale], types.houseSale)).resolves.toEqual(expect.arrayContaining(expectedArray));
+  });
+
+  it('scrape should return numberOfTypes*20 objects', async () => {
+    // await expect(scrape()).resolves.toHaveLength(Object.values(types).length * 20);
+    await expect(scrape()).resolves.toHaveLength(20);
   });
 });

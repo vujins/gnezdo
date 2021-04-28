@@ -1,3 +1,5 @@
+const types = require('./types');
+
 const halooglasiBaseUrl = 'https://www.halooglasi.com';
 const halooglasiBaseNest = halooglasiBaseUrl + '/nekretnine';
 
@@ -16,12 +18,12 @@ const halooglasiLandRent = halooglasiLandRentRent + 'zemljista';
 const url = Object.freeze({
   halooglasi: {
     baseUrl: halooglasiBaseUrl,
-    houseSale: halooglasiHouseSale,
-    houseRent: halooglasiHouseRent,
-    apartmentSale: halooglasiApartmentSale,
-    apartmentRent: halooglasiApartmentRent,
-    landSale: halooglasiLandSale,
-    landRent: halooglasiLandRent,
+    [types.houseSale]: halooglasiHouseSale,
+    [types.houseRent]: halooglasiHouseRent,
+    [types.apartmentSale]: halooglasiApartmentSale,
+    [types.apartmentRent]: halooglasiApartmentRent,
+    [types.landSale]: halooglasiLandSale,
+    [types.landRent]: halooglasiLandRent,
   },
 });
 

@@ -2,14 +2,25 @@ const axios = require('axios').default;
 const cheerio = require('cheerio');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const URL = require('../../utils/url');
+const types = require('../../utils/types');
 
 async function scrape() {
+  // const resultPromises = [];
 
+  // Object.values(types).forEach(type => {
+  //   resultPromises.push(scrapeList(URL.halooglasi[type], type));
+  // })
+
+  // const result = await Promise.all(resultPromises);
+
+  // return result.flat();
+
+  return await scrapeList(URL.halooglasi[types.houseSale], types.houseSale);
 }
 
 async function scrapeList(url, type) {
   const list = await getList(url);
-  return await Promise.all(list.map(url => scrapeItem(`${URL.halooglasi.baseUrl}${url}`, type)));
+  return await Promise.all(list.map(propertyUrl => scrapeItem(`${URL.halooglasi.baseUrl}${propertyUrl}`, type)));
 }
 
 async function getList(url) {
