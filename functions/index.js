@@ -25,7 +25,15 @@ bot.catch((err, ctx) => {
 })
 
 // initialize the commands
-bot.command('/start', (ctx) => ctx.reply('Welcome!'))
+bot.command('/start', async (ctx) => {
+  const chatId = ctx.message.chat.id
+  functions.logger.info(`User ${chatId} is registered`)
+  await firestore.doc('scraping/users').set({
+    [chatId]: { active: true }
+  }, { merge: true })
+  return ctx.reply(`Welcome user: ${chatId}!`)
+})
+
 // copy every message and send to the user
 // bot.on('message', (ctx) => ctx.telegram.sendCopy(ctx.chat.id, ctx.message))
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
@@ -44,7 +52,25 @@ exports.registrationBot = functions.https.onRequest((request, response) => {
     })
 })
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
+
+exports.notifications = functions.firestore.document('properties/{docId}').onCreate(docSnap => {
+  console.log(docSnap.data())
+})
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
+
+// exports.testTelegramBot = functions.https.onRequest(async (req, res) => {
+//   const usersRef = await firestore.doc('scraping/users').get()
+//   const users = usersRef.data()
+//   functions.logger.info(`Users: ${JSON.stringify(users)}`)
+//   const userChatIds = Object.keys(users)
+//   functions.logger.info(`Sending messages to ${userChatIds}`)
+//   userChatIds.forEach(chatId => {
+//     bot.telegram.sendMessage(chatId, 'This is a custom proactive message')
+//   })
+//   res.sendStatus(200)
+// })
 
 exports.fakeScraping = functions.https.onRequest(async (req, res) => {
   try {
@@ -56,7 +82,7 @@ exports.fakeScraping = functions.https.onRequest(async (req, res) => {
   }
 })
 
-exports.scheduledScraper = functions.pubsub.schedule('0 * * * *').onRun(async () => {
+exports.scheduledScrapeJob = functions.pubsub.schedule('0 * * * *').onRun(async () => {
   try {
     await scrapeJob()
     return true
