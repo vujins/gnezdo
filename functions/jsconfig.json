@@ -1,7 +1,13 @@
 {
+  "compilerOptions": {
+    // "target": "es2020",
+  },
   "typeAcquisition": {
     "include": [
-      "jest"
+      "jest",
     ]
-  }
+  },
+  "exclude": [
+    "node_modules"
+  ],
 }

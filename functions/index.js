@@ -4,11 +4,15 @@ const admin = require('firebase-admin')
 const google_billing = require('googleapis/build/src/apis/cloudbilling')
 const google_compute = require('googleapis/build/src/apis/compute')
 const { GoogleAuth } = require('google-auth-library')
+const { scrape } = require('./scrapers/halooglasi/scraper')
 
 const firestore = admin.initializeApp().firestore()
+firestore.settings({ ignoreUndefinedProperties: true })
 const billing = google_billing.cloudbilling('v1')
 const PROJECT_ID = process.env.GCLOUD_PROJECT
 const PROJECT_NAME = `projects/${PROJECT_ID}`
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~ TELEGRAM ~~~~~~~~~~~~~~~~~~~~~~~~
 
 const bot = new Telegraf(functions.config().telegram.token, {
   telegram: { webhookReply: true },
@@ -27,13 +31,58 @@ bot.command('/start', (ctx) => ctx.reply('Welcome!'))
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
-exports.registrationBot = functions.https.onRequest(async (request, response) => {
+exports.registrationBot = functions.https.onRequest((request, response) => {
   functions.logger.log('Incoming message', request.body)
-  return await bot.handleUpdate(request.body, response).then((rv) => {
-    // if it's not a request from the telegram, rv will be undefined, but we should respond with 200
-    return !rv && response.sendStatus(200)
-  })
+  return bot.handleUpdate(request.body, response)
+    .then((rv) => {
+      // if it's not a request from the telegram, rv will be undefined, but we should respond with 200
+      return !rv && response.sendStatus(200)
+    })
+    .catch(err => {
+      functions.logger.error(err)
+      return response.sendStatus(500)
+    })
 })
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
+
+exports.fakeScraping = functions.https.onRequest(async (req, res) => {
+  try {
+    await scrapeJob()
+    res.send('scraping finished')
+  } catch (err) {
+    functions.logger.error(err)
+    res.send(err.message)
+  }
+})
+
+exports.scheduledScraper = functions.pubsub.schedule('0 * * * *').onRun(async () => {
+  try {
+    await scrapeJob()
+    return true
+  } catch (err) {
+    functions.logger.error(err)
+    return false
+  }
+});
+
+async function scrapeJob() {
+  // get date of last scrape
+  const infoDocRef = await firestore.doc('/scraping/info').get()
+  const lastScrapeDate = infoDocRef.data().validFrom.toDate()
+
+  // scrape properties and filter for properties uploaded between last scrape and now
+  const properties = await scrape()
+  const validProperties = properties.filter(property => property.validFrom > lastScrapeDate)
+
+  // write all properties into firestore and trigger all subscribers
+  const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
+
+  // if nothing failed, update validFrom so next scrape will ignore already scraped properties
+  await firestore.doc('/scraping/info').set({ validFrom: admin.firestore.Timestamp.now() }, { merge: true })
+
+  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties at ${new Date()}`)
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -20,7 +20,10 @@ async function scrape() {
 
 async function scrapeList(url, type) {
   const list = await getList(url);
-  return await Promise.all(list.map(propertyUrl => scrapeItem(`${URL.halooglasi.baseUrl}${propertyUrl}`, type)));
+  const settledPromises = await Promise.allSettled(list.map(propertyUrl => scrapeItem(`${URL.halooglasi.baseUrl}${propertyUrl}`, type)))
+  return settledPromises
+    .filter(p => p.status === 'fulfilled')
+    .map(p => p.value);
 }
 
 async function getList(url) {
