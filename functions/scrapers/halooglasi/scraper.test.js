@@ -8,6 +8,7 @@ describe('halooglasi scraper', () => {
 
   const expectedPropertyObject = expect.objectContaining({
     url: expect.any(String),
+    imageURLs: expect.anything(),
     type: expect.any(String),
     id: expect.any(String),
     title: expect.any(String),

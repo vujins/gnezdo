@@ -6,16 +6,6 @@ const types = require('../../utils/types')
 const geofire = require('geofire-common')
 
 async function scrape() {
-  // const resultPromises = []
-
-  // Object.values(types).forEach(type => {
-  //   resultPromises.push(scrapeList(URL.halooglasi[type], type))
-  // })
-
-  // const result = await Promise.all(resultPromises)
-
-  // return result.flat()
-
   const promises = [
     scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${200000}&cena_d_unit=4&page=${1}`, types.houseSale),
     scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${200000}&cena_d_unit=4&page=${2}`, types.houseSale),
@@ -61,7 +51,8 @@ async function scrapeItem(url, type) {
     virtualConsole,
   })
   const { window } = dom
-  const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s } = window.QuidditaEnvironment?.CurrentClassified
+  const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s, ImageURLs }
+    = window.QuidditaEnvironment?.CurrentClassified
   const { AdKindCode } = window.QuidditaEnvironment?.CurrentClassifiedInstances[0]
   const [lat, lng] = GeoLocationRPT.split(',')
   const geoLocation = [parseFloat(lat), parseFloat(lng)]
@@ -69,6 +60,7 @@ async function scrapeItem(url, type) {
 
   return {
     url,
+    imageURLs: ImageURLs,
     type,
     id: Id,
     title: Title,
@@ -83,9 +75,9 @@ async function scrapeItem(url, type) {
     city: grad_s,
     location: lokacija_s,
     microlocation: mikrolokacija_s,
+    street: ulica_t,
     sqm: kvadratura_d,
     sqmUnit: kvadratura_d_unit_s,
-    street: ulica_t,
     price: cena_d,
     priceUnit: cena_d_unit_s,
     pricePerSqm: Math.floor(cena_d / kvadratura_d),
