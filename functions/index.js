@@ -15,6 +15,17 @@ const PROJECT_NAME = `projects/${PROJECT_ID}`
 
 // firestore paths
 const usersDocPath = '/scraping/users'
+const infoDocPath = '/scraping/info'
+
+const helpText = `
+Welcome to Gnezdo!
+/limit {amount} - set the price limit for your search.
+/radius {km} - set the search radius in km for your locations.
+/go - start notifications.
+/pause - pause notifications.
+/reset - reset search parameters.
+Send custom location to search in the set radius around sent locations.
+`
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ TELEGRAM ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -30,9 +41,16 @@ bot.catch((err, ctx) => {
 
 bot.command('/start', async (ctx) => {
   const chatId = ctx.message.chat.id
-  functions.logger.info(`User ${chatId} is registered!`)
+  functions.logger.info(`Users ${chatId} search is registered!`)
+  await updateCurrentUser(chatId, { active: false })
+  return ctx.reply(helpText)
+})
+
+bot.command('/go', async (ctx) => {
+  const chatId = ctx.message.chat.id
+  functions.logger.info(`Users ${chatId} search is started!`)
   await updateCurrentUser(chatId, { active: true })
-  return ctx.reply(`Welcome user: ${chatId}!`)
+  return ctx.reply(`Search started!`)
 })
 
 bot.command('/pause', async (ctx) => {
@@ -54,7 +72,7 @@ bot.on('location', async (ctx) => {
   const locationObj = ctx.message.location
   const location = [locationObj.latitude, locationObj.longitude]
   await addUserLocation(chatId, location)
-  ctx.reply(`New location added ${JSON.stringify(location)}!`)
+  return ctx.reply(`New location added ${JSON.stringify(location)}!`)
 })
 
 bot.command('/limit', async (ctx) => {
@@ -89,11 +107,6 @@ exports.notifications = functions.runWith({ memory: '512MB' }).region('europe-we
   return handleProperty(docSnap.data())
 })
 
-exports.testNotifications = functions.region('europe-west1').https.onRequest(async (req, res) => {
-  await handleProperty({ geoLocation: [44.427525, 20.690323], url: 'asdas', price: 150000 })
-  return res.sendStatus(200)
-})
-
 async function handleProperty(property) {
   const users = await getUsers()
 
@@ -111,58 +124,28 @@ async function handleProperty(property) {
       bot.telegram.sendMessage(chatId, property.url)
     }
   }
+
+  return Promise.resolve()
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.fakeScraping = functions.region('europe-west1').https.onRequest(async (req, res) => {
-  try {
-    await firestore.doc('/scraping/info').set({ active: true, validFrom: admin.firestore.Timestamp.fromMillis(Date.UTC(2021, 3, 25)) })
-    // get date of last scrape
-    const infoDocRef = await firestore.doc('/scraping/info').get()
-    const info = infoDocRef.data()
-    console.log(info)
-
-    // cancle scraping if paused
-    if (!info.active) {
-      functions.logger.info('Scraping paused - master switch')
-      return res.send('scraping finished - not active')
-    }
-
-    // cancle scraping if all users paused
-    const users = Object.values(await getUsers());
-    console.log(users)
-    if (!users.some(user => user.active)) {
-      functions.logger.info('Scraping paused - no active users')
-      return res.send('scraping finished - no active users')
-    }
-
-    const lastScrapeDate = info.validFrom.toDate()
-    await scrapeJob(lastScrapeDate)
-    res.send('scraping finished')
-  } catch (err) {
-    functions.logger.error(err)
-    res.send(err.message)
-  }
-})
-
 exports.scheduledScrapeJob = functions.runWith({ memory: '512MB' }).region('europe-west1').pubsub.schedule('0 * * * *').onRun(async () => {
   try {
     // get date of last scrape
-    const infoDocRef = await firestore.doc('/scraping/info').get()
-    const info = infoDocRef.data()
+    const info = await getScrapingInfo()
 
     // cancle scraping if paused
     if (!info.active) {
       functions.logger.info('Scraping paused - master switch')
-      return true
+      return Promise.resolve()
     }
 
     // cancle scraping if all users paused
     const users = Object.values(await getUsers());
     if (!users.some(user => user.active)) {
       functions.logger.info('Scraping paused - no active users')
-      return true
+      return Promise.resolve()
     }
 
     const lastScrapeDate = info.validFrom.toDate()
@@ -170,7 +153,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB' }).region('euro
     return scrapeJob(lastScrapeDate)
   } catch (err) {
     functions.logger.error(err)
-    return false
+    return Promise.reject()
   }
 });
 
@@ -183,7 +166,7 @@ async function scrapeJob(lastScrapeDate) {
   const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
 
   // if nothing failed, update validFrom so next scrape will ignore already scraped properties
-  await firestore.doc('/scraping/info').set({ validFrom: admin.firestore.Timestamp.now() }, { merge: true })
+  await firestore.doc(infoDocPath).set({ validFrom: admin.firestore.Timestamp.now() }, { merge: true })
 
   functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties at ${new Date()}`)
 
@@ -199,27 +182,25 @@ exports.stopBilling = functions.region('europe-west1').pubsub.topic('billing').o
     functions.logger.info(rez)
     return rez
   } catch (error) {
-    return `receiveBillingNotice function failed: ${error}`
+    return Promise.reject(`receiveBillingNotice function failed: ${error}`)
   }
 })
 
 async function handleBillingPubSub(pubsubData) {
-  if (!pubsubData) return 'PubSub data undefined!'
+  if (!pubsubData) return Promise.reject('PubSub data undefined!')
 
   if (pubsubData.costAmount <= pubsubData.budgetAmount) {
-    return `No action necessary. (Current cost: ${pubsubData.costAmount})`
+    return Promise.resolve(`No action necessary. (Current cost: ${pubsubData.costAmount})`)
   }
 
-  if (!PROJECT_ID) {
-    return 'No project specified'
-  }
+  if (!PROJECT_ID) return Promise.reject('No project specified')
 
   _setAuthCredential()
   const billingEnabled = await _isBillingEnabled(PROJECT_NAME)
   if (billingEnabled) {
     return _disableBillingForProject(PROJECT_NAME)
   } else {
-    return 'Billing already disabled'
+    return Promise.resolve('Billing already disabled')
   }
 }
 
@@ -269,7 +250,7 @@ const _disableBillingForProject = async projectName => {
     name: projectName,
     requestBody: { billingAccountName: '' }, // Disable billing
   })
-  return `Billing disabled: ${JSON.stringify(res.data)}`
+  return Promise.resolve(`Billing disabled: ${JSON.stringify(res.data)}`)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ FIRESTORE ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -292,4 +273,8 @@ async function addUserLocation(chatId, location) {
 
 async function resetUser(chatId) {
   return await firestore.doc(usersDocPath).update({ [chatId]: { active: false } })
+}
+
+async function getScrapingInfo() {
+  return (await firestore.doc(infoDocPath).get()).data()
 }
