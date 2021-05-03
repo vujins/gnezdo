@@ -17,8 +17,8 @@ async function scrape() {
   // return result.flat()
 
   const promises = [
-    scrapeList(URL.halooglasi[types.houseSale], types.houseSale),
-    scrapeList(URL.halooglasi[types.houseSale] + URL.halooglasi.pageTwoParam, types.houseSale)
+    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${200000}&cena_d_unit=4&page=${1}`, types.houseSale),
+    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${200000}&cena_d_unit=4&page=${2}`, types.houseSale),
   ]
 
   return (await Promise.all(promises)).flat()

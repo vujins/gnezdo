@@ -110,8 +110,11 @@ describe('halooglasi scraper', () => {
     await expect(scrapeList(URL.halooglasi[types.houseSale], types.houseSale)).resolves.toEqual(expect.arrayContaining(expectedArray));
   });
 
-  it('scrape should return numberOfTypes*20 objects', async () => {
-    // await expect(scrape()).resolves.toHaveLength(Object.values(types).length * 20);
+  it('scrape should return numOfPages*20 objects', async () => {
     await expect(scrape()).resolves.toHaveLength(40);
+  });
+
+  it('scrape should return numOfPages*20 property objects', async () => {
+    await expect(scrape()).resolves.toEqual(expect.arrayContaining(Array(40).fill(expectedPropertyObject)));
   });
 });

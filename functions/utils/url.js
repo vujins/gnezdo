@@ -18,7 +18,6 @@ const halooglasiLandRent = halooglasiLandRentRent + 'zemljista';
 const url = Object.freeze({
   halooglasi: {
     baseUrl: halooglasiBaseUrl,
-    pageTwoParam: '?page=2',
     [types.houseSale]: halooglasiHouseSale,
     [types.houseRent]: halooglasiHouseRent,
     [types.apartmentSale]: halooglasiApartmentSale,
