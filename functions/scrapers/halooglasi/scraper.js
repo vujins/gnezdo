@@ -56,6 +56,7 @@ async function scrapeItem(url, type) {
   });
   const { window } = dom;
   const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s } = window.QuidditaEnvironment?.CurrentClassified;
+  const [lat, lng] = GeoLocationRPT.split(',');
 
   return {
     url,
@@ -63,7 +64,7 @@ async function scrapeItem(url, type) {
     id: Id,
     title: Title,
     validFrom: new Date(ValidFrom),
-    geoLocation: GeoLocationRPT,
+    geoLocation: [parseFloat(lat), parseFloat(lng)],
     categories: CategoryNames,
     rooms: broj_soba_s,
     floors: spratnost_s,

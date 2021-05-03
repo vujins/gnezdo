@@ -12,7 +12,7 @@ describe('halooglasi scraper', () => {
     id: expect.any(String),
     title: expect.any(String),
     validFrom: expect.any(Date),
-    geoLocation: expect.stringMatching(/\d+\.\d+,\d+\.\d+/g),
+    geoLocation: expect.arrayContaining([expect.any(Number), expect.any(Number)]),
     categories: expect.anything(),
     rooms: expect.any(String),
     floors: expect.any(String),

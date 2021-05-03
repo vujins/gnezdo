@@ -5,6 +5,7 @@ const google_billing = require('googleapis/build/src/apis/cloudbilling')
 const google_compute = require('googleapis/build/src/apis/compute')
 const { GoogleAuth } = require('google-auth-library')
 const { scrape } = require('./scrapers/halooglasi/scraper')
+const geofire = require('geofire-common')
 
 const firestore = admin.initializeApp().firestore()
 firestore.settings({ ignoreUndefinedProperties: true })
@@ -27,16 +28,31 @@ bot.catch((err, ctx) => {
 // initialize the commands
 bot.command('/start', async (ctx) => {
   const chatId = ctx.message.chat.id
-  functions.logger.info(`User ${chatId} is registered`)
-  await updateCurrentUser({ [chatId]: { active: true } })
+  functions.logger.info(`User ${chatId} is registered!`)
+  await updateCurrentUser({ [chatId]: { active: true, radius: 5 } }) // TODO remove radius
   return ctx.reply(`Welcome user: ${chatId}!`)
+})
+
+bot.command('/pause', async (ctx) => {
+  const chatId = ctx.message.chat.id
+  functions.logger.info(`User ${chatId} is paused!`)
+  await updateCurrentUser({ [chatId]: { active: false } })
+  return ctx.reply(`Search paused!`)
+})
+
+bot.command('/reset', async (ctx) => {
+  const chatId = ctx.message.chat.id
+  functions.logger.info(`User ${chatId} is reset!`)
+  await resetUser(chatId)
+  return ctx.reply(`Locations and radius reset reset!`)
 })
 
 bot.on('location', async (ctx) => {
   const chatId = ctx.message.chat.id
-  const location = ctx.message.location
-  await updateCurrentUser({ [chatId]: { location } })
-  ctx.reply(`Your location was set to ${JSON.stringify(location)}!`)
+  const locationObj = ctx.message.location
+  const location = [locationObj.latitude, locationObj.longitude]
+  await addUserLocation(chatId, location)
+  ctx.reply(`New location added ${JSON.stringify(location)}!`)
 })
 
 // copy every message and send to the user
@@ -45,33 +61,63 @@ bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
 exports.registrationBot = functions.region('europe-west1').https.onRequest((request, response) => {
-  functions.logger.info('Incoming message', request.body)
+  functions.logger.info(`Incoming message: ${JSON.stringify(request.body)}`)
   return bot.handleUpdate(request.body, response)
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.notifications = functions.region('europe-west1').firestore.document('properties/{docId}').onCreate(docSnap => {
-  console.log(docSnap.data())
+exports.notifications = functions.region('europe-west1').firestore.document('properties/{docId}').onCreate(async docSnap => {
+  return await handleProperty(docSnap.data())
 })
+
+exports.testNotifications = functions.region('europe-west1').https.onRequest(async (req, res) => {
+  await handleProperty({ geoLocation: [40.774015, 20.409911], url: 'asdas' })
+  return res.sendStatus(200)
+})
+
+async function handleProperty(property) {
+  const usersRef = await firestore.doc('/scraping/users').get()
+  const users = usersRef.data()
+
+  for (const chatId in users) {
+    console.log(chatId)
+    const { locations, radius, active } = users[chatId]
+    if (!active) continue;
+    const locationCoords = Object.values(locations)
+    if (locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) < radius)) {
+      console.log(`Found property for user ${chatId}: ${property.url}`)
+      bot.telegram.sendMessage(chatId, property.url)
+    }
+  }
+
+  console.log(users)
+  console.log(property)
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-// exports.testTelegramBot = functions.region('europe-west1').https.onRequest(async (req, res) => {
-//   const usersRef = await firestore.doc('scraping/users').get()
-//   const users = usersRef.data()
-//   functions.logger.info(`Users: ${JSON.stringify(users)}`)
-//   const userChatIds = Object.keys(users)
-//   functions.logger.info(`Sending messages to ${userChatIds}`)
-//   userChatIds.forEach(chatId => {
-//     bot.telegram.sendMessage(chatId, 'This is a custom proactive message')
-//   })
-//   res.sendStatus(200)
-// })
-
 exports.fakeScraping = functions.region('europe-west1').https.onRequest(async (req, res) => {
   try {
-    await scrapeJob()
+    // get date of last scrape
+    const infoDocRef = await firestore.doc('/scraping/info').get()
+    const info = infoDocRef.data()
+
+    // cancle scraping if paused
+    if (!info.active) {
+      functions.logger.info('Scraping paused - master switch')
+      return true
+    }
+
+    // cancle scraping if all users paused
+    const users = Object.values(await getUsers());
+    if (!users.some(user => user.active)) {
+      functions.logger.info('Scraping paused - no active users')
+      return true
+    }
+
+    const lastScrapeDate = info.validFrom.toDate()
+    await scrapeJob(lastScrapeDate)
     res.send('scraping finished')
   } catch (err) {
     functions.logger.error(err)
@@ -81,7 +127,25 @@ exports.fakeScraping = functions.region('europe-west1').https.onRequest(async (r
 
 exports.scheduledScrapeJob = functions.region('europe-west1').pubsub.schedule('0 * * * *').onRun(async () => {
   try {
-    await scrapeJob()
+    // get date of last scrape
+    const infoDocRef = await firestore.doc('/scraping/info').get()
+    const info = infoDocRef.data()
+
+    // cancle scraping if paused
+    if (!info.active) {
+      functions.logger.info('Scraping paused - master switch')
+      return true
+    }
+
+    // cancle scraping if all users paused
+    const users = Object.values(await getUsers());
+    if (!users.some(user => user.active)) {
+      functions.logger.info('Scraping paused - no active users')
+      return true
+    }
+
+    const lastScrapeDate = info.validFrom.toDate()
+    await scrapeJob(lastScrapeDate)
     return true
   } catch (err) {
     functions.logger.error(err)
@@ -89,11 +153,7 @@ exports.scheduledScrapeJob = functions.region('europe-west1').pubsub.schedule('0
   }
 });
 
-async function scrapeJob() {
-  // get date of last scrape
-  const infoDocRef = await firestore.doc('/scraping/info').get()
-  const lastScrapeDate = infoDocRef.data().validFrom.toDate()
-
+async function scrapeJob(lastScrapeDate) {
   // scrape properties and filter for properties uploaded between last scrape and now
   const properties = await scrape()
   const validProperties = properties.filter(property => property.validFrom > lastScrapeDate)
@@ -191,6 +251,23 @@ const _disableBillingForProject = async projectName => {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ FIRESTORE ~~~~~~~~~~~~~~~~~~~~~~~~
 
+// users
+const usersDocPath = '/scraping/users'
 async function updateCurrentUser(user) {
-  return await firestore.doc('scraping/users').set(user, { merge: true })
+  return await firestore.doc(usersDocPath).set(user, { merge: true })
+}
+
+async function getUsers() {
+  return (await firestore.doc(usersDocPath).get()).data()
+}
+
+async function addUserLocation(chatId, location) {
+  functions.logger.info(`Adding new location: ${location} for user ${chatId}`)
+  await firestore.doc(usersDocPath).set({
+    [chatId]: { locations: { [geofire.geohashForLocation(location)]: location } }
+  }, { merge: true })
+}
+
+async function resetUser(chatId) {
+  return await firestore.doc(usersDocPath).update({ [chatId]: { active: false } }, { merge: true })
 }
