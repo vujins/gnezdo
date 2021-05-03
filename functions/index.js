@@ -121,13 +121,9 @@ async function handleProperty(property) {
       property: {price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
     if (property.price < priceLimit && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
       functions.logger.info(`Found property for user ${chatId}: ${property.url}`)
-      bot.telegram.sendMessage(chatId, `
-        ${property.title}
-        Total views: ${property.totalViews}
-        ${property.city} - ${property.location} - ${property.microlocation}
-        Kvadratura: ${property.sqm} ${property.sqmUnit}
-        Površina placa: ${property.plot} ${property.plotUnit}
-        ${property.url}`)
+
+      const msg = `${property.title}\nTotal views: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
+      bot.telegram.sendMessage(chatId, msg)
     }
   }
 
