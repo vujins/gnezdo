@@ -28,10 +28,15 @@ bot.catch((err, ctx) => {
 bot.command('/start', async (ctx) => {
   const chatId = ctx.message.chat.id
   functions.logger.info(`User ${chatId} is registered`)
-  await firestore.doc('scraping/users').set({
-    [chatId]: { active: true }
-  }, { merge: true })
+  await updateCurrentUser({ [chatId]: { active: true } })
   return ctx.reply(`Welcome user: ${chatId}!`)
+})
+
+bot.on('location', async (ctx) => {
+  const chatId = ctx.message.chat.id
+  const location = ctx.message.location
+  await updateCurrentUser({ [chatId]: { location } })
+  ctx.reply(`Your location was set to ${JSON.stringify(location)}!`)
 })
 
 // copy every message and send to the user
@@ -39,28 +44,20 @@ bot.command('/start', async (ctx) => {
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
-exports.registrationBot = functions.https.onRequest((request, response) => {
-  functions.logger.log('Incoming message', request.body)
+exports.registrationBot = functions.region('europe-west3').https.onRequest((request, response) => {
+  functions.logger.info('Incoming message', request.body)
   return bot.handleUpdate(request.body, response)
-    .then((rv) => {
-      // if it's not a request from the telegram, rv will be undefined, but we should respond with 200
-      return !rv && response.sendStatus(200)
-    })
-    .catch(err => {
-      functions.logger.error(err)
-      return response.sendStatus(500)
-    })
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.notifications = functions.firestore.document('properties/{docId}').onCreate(docSnap => {
+exports.notifications = functions.region('europe-west3').firestore.document('properties/{docId}').onCreate(docSnap => {
   console.log(docSnap.data())
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-// exports.testTelegramBot = functions.https.onRequest(async (req, res) => {
+// exports.testTelegramBot = functions.region('europe-west3').https.onRequest(async (req, res) => {
 //   const usersRef = await firestore.doc('scraping/users').get()
 //   const users = usersRef.data()
 //   functions.logger.info(`Users: ${JSON.stringify(users)}`)
@@ -72,7 +69,7 @@ exports.notifications = functions.firestore.document('properties/{docId}').onCre
 //   res.sendStatus(200)
 // })
 
-exports.fakeScraping = functions.https.onRequest(async (req, res) => {
+exports.fakeScraping = functions.region('europe-west3').https.onRequest(async (req, res) => {
   try {
     await scrapeJob()
     res.send('scraping finished')
@@ -82,7 +79,7 @@ exports.fakeScraping = functions.https.onRequest(async (req, res) => {
   }
 })
 
-exports.scheduledScrapeJob = functions.pubsub.schedule('0 * * * *').onRun(async () => {
+exports.scheduledScrapeJob = functions.region('europe-west3').pubsub.schedule('0 * * * *').onRun(async () => {
   try {
     await scrapeJob()
     return true
@@ -112,7 +109,7 @@ async function scrapeJob() {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.stopBilling = functions.pubsub.topic('billing').onPublish(async (message) => {
+exports.stopBilling = functions.region('europe-west3').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
     const rez = await handleBillingPubSub(billingData)
@@ -190,4 +187,10 @@ const _disableBillingForProject = async projectName => {
     requestBody: { billingAccountName: '' }, // Disable billing
   })
   return `Billing disabled: ${JSON.stringify(res.data)}`
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~ FIRESTORE ~~~~~~~~~~~~~~~~~~~~~~~~
+
+async function updateCurrentUser(user) {
+  return await firestore.doc('scraping/users').set(user, { merge: true })
 }
