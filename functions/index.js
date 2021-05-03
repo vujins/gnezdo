@@ -44,20 +44,20 @@ bot.on('location', async (ctx) => {
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
-exports.registrationBot = functions.region('europe-west3').https.onRequest((request, response) => {
+exports.registrationBot = functions.region('europe-west1').https.onRequest((request, response) => {
   functions.logger.info('Incoming message', request.body)
   return bot.handleUpdate(request.body, response)
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.notifications = functions.region('europe-west3').firestore.document('properties/{docId}').onCreate(docSnap => {
+exports.notifications = functions.region('europe-west1').firestore.document('properties/{docId}').onCreate(docSnap => {
   console.log(docSnap.data())
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-// exports.testTelegramBot = functions.region('europe-west3').https.onRequest(async (req, res) => {
+// exports.testTelegramBot = functions.region('europe-west1').https.onRequest(async (req, res) => {
 //   const usersRef = await firestore.doc('scraping/users').get()
 //   const users = usersRef.data()
 //   functions.logger.info(`Users: ${JSON.stringify(users)}`)
@@ -69,7 +69,7 @@ exports.notifications = functions.region('europe-west3').firestore.document('pro
 //   res.sendStatus(200)
 // })
 
-exports.fakeScraping = functions.region('europe-west3').https.onRequest(async (req, res) => {
+exports.fakeScraping = functions.region('europe-west1').https.onRequest(async (req, res) => {
   try {
     await scrapeJob()
     res.send('scraping finished')
@@ -79,7 +79,7 @@ exports.fakeScraping = functions.region('europe-west3').https.onRequest(async (r
   }
 })
 
-exports.scheduledScrapeJob = functions.region('europe-west3').pubsub.schedule('0 * * * *').onRun(async () => {
+exports.scheduledScrapeJob = functions.region('europe-west1').pubsub.schedule('0 * * * *').onRun(async () => {
   try {
     await scrapeJob()
     return true
@@ -109,7 +109,7 @@ async function scrapeJob() {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.stopBilling = functions.region('europe-west3').pubsub.topic('billing').onPublish(async (message) => {
+exports.stopBilling = functions.region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
     const rez = await handleBillingPubSub(billingData)
