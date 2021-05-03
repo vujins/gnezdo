@@ -96,14 +96,14 @@ bot.command('/radius', async (ctx) => {
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
-exports.registrationBot = functions.region('europe-west1').https.onRequest((request, response) => {
+exports.registrationBot = functions.runWith({ maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
   functions.logger.info(`Incoming message: ${JSON.stringify(request.body)}`)
   return bot.handleUpdate(request.body, response)
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.notifications = functions.runWith({ memory: '512MB' }).region('europe-west1').firestore.document('properties/{docId}').onCreate(docSnap => {
+exports.notifications = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').firestore.document('properties/{docId}').onCreate(docSnap => {
   return handleProperty(docSnap.data())
 })
 
@@ -130,7 +130,7 @@ async function handleProperty(property) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.scheduledScrapeJob = functions.runWith({ memory: '512MB' }).region('europe-west1').pubsub.schedule('0 * * * *').onRun(async () => {
+exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').pubsub.schedule('0 * * * *').onRun(async () => {
   try {
     // get date of last scrape
     const info = await getScrapingInfo()
@@ -178,7 +178,7 @@ async function scrapeJob(lastScrapeDate) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.stopBilling = functions.region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
+exports.stopBilling = functions.runWith({ maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
     const rez = await handleBillingPubSub(billingData)
