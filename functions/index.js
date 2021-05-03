@@ -121,7 +121,7 @@ async function handleProperty(property) {
       property: {price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
     if (property.price < priceLimit && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
       console.log(`Found property for user ${chatId}: ${property.url}`)
-      bot.telegram.sendMessage(chatId, property.url)
+      bot.telegram.sendMessage(chatId, `${property.url}\n${JSON.stringify(property, null, 2)}`)
     }
   }
 
@@ -168,7 +168,10 @@ async function scrapeJob(lastScrapeDate) {
   // if nothing failed, update validFrom so next scrape will ignore already scraped properties
   await firestore.doc(infoDocPath).set({ validFrom: admin.firestore.Timestamp.now() }, { merge: true })
 
-  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties at ${new Date()}`)
+  const promoted = properties.filter(p => p.adKindCode === 'Promoted')
+  const top = properties.filter(p => p.adKindCode === 'Top')
+  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties,
+    ${promoted}/${top}/${properties.length} (promoted/top/total) at ${new Date()}`)
 
   return Promise.resolve()
 }

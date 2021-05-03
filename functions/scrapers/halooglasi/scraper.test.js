@@ -13,6 +13,7 @@ describe('halooglasi scraper', () => {
     title: expect.any(String),
     validFrom: expect.any(Date),
     geoLocation: expect.arrayContaining([expect.any(Number), expect.any(Number)]),
+    geohash: expect.any(String),
     categories: expect.anything(),
     rooms: expect.any(String),
     floors: expect.any(String),
@@ -31,6 +32,7 @@ describe('halooglasi scraper', () => {
     avaragePricePerSqmLink: expect.anything(),
     advertiser: expect.any(String),
     totalViews: expect.any(Number),
+    adKindCode: expect.any(String),
   })
 
   beforeAll(() => {
@@ -110,6 +112,6 @@ describe('halooglasi scraper', () => {
 
   it('scrape should return numberOfTypes*20 objects', async () => {
     // await expect(scrape()).resolves.toHaveLength(Object.values(types).length * 20);
-    await expect(scrape()).resolves.toHaveLength(20);
+    await expect(scrape()).resolves.toHaveLength(40);
   });
 });

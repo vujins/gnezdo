@@ -16,7 +16,12 @@ async function scrape() {
 
   // return result.flat()
 
-  return await scrapeList(URL.halooglasi[types.houseSale], types.houseSale)
+  const promises = [
+    scrapeList(URL.halooglasi[types.houseSale], types.houseSale),
+    scrapeList(URL.halooglasi[types.houseSale] + URL.halooglasi.pageTwoParam, types.houseSale)
+  ]
+
+  return (await Promise.all(promises)).flat()
 }
 
 async function scrapeList(url, type) {
@@ -57,9 +62,10 @@ async function scrapeItem(url, type) {
   })
   const { window } = dom
   const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s } = window.QuidditaEnvironment?.CurrentClassified
+  const { AdKindCode } = window.QuidditaEnvironment?.CurrentClassifiedInstances[0]
   const [lat, lng] = GeoLocationRPT.split(',')
   const geoLocation = [parseFloat(lat), parseFloat(lng)]
-  const geohash = geofire.geohashForLocation([lat, lng])
+  const geohash = geofire.geohashForLocation(geoLocation)
 
   return {
     url,
@@ -87,6 +93,7 @@ async function scrapeItem(url, type) {
     avaragePricePerSqmLink: AveragePriceBySurfaceLink,
     advertiser: oglasivac_nekretnine_s,
     totalViews: TotalViews,
+    adKindCode: AdKindCode,
   }
 }
 
