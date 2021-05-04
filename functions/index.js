@@ -125,7 +125,7 @@ async function handleProperty(property) {
     functions.logger.info(`Checking user {chatId: ${chatId}, priceLimit: ${priceLimit}, radius: ${radius}, locations: ${JSON.stringify(locationCoords)}} -
       property: {price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
     if (property.price < priceLimit && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
-      functions.logger.info(`Found property for user ${chatId}: ${property.url}`)
+      functions.logger.info(`Found property validFrom: ${property.validFrom} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
 
       const msg = `${property.title}\nTotal views: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
       bot.telegram.sendMessage(chatId, msg)
@@ -167,7 +167,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
 
 // exports.fakeScheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
 //   try {
-//     await updateScrapingInfo({ active: true, validFrom: admin.firestore.Timestamp.now() })
+//     await updateScrapingInfo({ active: true, validFrom: admin.firestore.Timestamp.fromDate(new Date("2021-05-04T12:00:45.36")) })
 //     await updateCurrentUser(838164104, {
 //       active: true,
 //       locations: {
@@ -287,9 +287,7 @@ const _isBillingEnabled = async projectName => {
     const res = await billing.projects.getBillingInfo({ name: projectName })
     return res.data.billingEnabled
   } catch (e) {
-    console.log(
-      'Unable to determine if billing is enabled on specified project, assuming billing is enabled'
-    )
+    functions.logger.error('Unable to determine if billing is enabled on specified project, assuming billing is enabled')
     return true
   }
 }

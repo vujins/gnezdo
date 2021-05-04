@@ -58,15 +58,18 @@ async function scrapeItem(url, type) {
   const geoLocation = [parseFloat(lat), parseFloat(lng)]
   const geohash = geofire.geohashForLocation(geoLocation)
 
+  // Halooglasi returns dates in format '2021-05-04T10:11:43.32Z', Z at the end is refering to UTC time zone
+  // but the actual date from Halooglasi is refering to GMT +2.
+  // Removing the Z at the end will not work because our server is in GTM +0, the solution is to sub 2 hours.
+  const validFrom = new Date(Date.parse(ValidFrom) - 2 * 60 * 60 * 1000)
+
   return {
     url,
     imageURLs: ImageURLs,
     type,
     id: Id,
     title: Title,
-    // Halooglasi returns dates in format '2021-05-04T10:11:43.32Z', Z at the end is refering to UTC time zone
-    // but the actual date from Halooglasi is refering to GMT +2
-    validFrom: new Date(ValidFrom?.replace('Z', '') ?? Date.now()),
+    validFrom,
     geoLocation,
     geohash,
     categories: CategoryNames,

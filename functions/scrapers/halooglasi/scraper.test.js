@@ -12,6 +12,15 @@ describe('halooglasi wrong time zone', () => {
     const timestamp = '2021-05-04T10:11:43.32'
     expect(timestamp.replace('Z', '')).toEqual('2021-05-04T10:11:43.32')
   })
+
+  test('Subtracting 2 hours from UTC +0 should have the same hours as GTM +2', () => {
+    const timestamp = '2021-05-04T10:11:43.32Z'
+    const validFromInFuture = Date.parse(timestamp)
+    const validFrom = new Date(validFromInFuture - 2 * 60 * 60 * 1000)
+
+    expect(validFrom.getHours()).toEqual(10)
+    expect(validFrom.toISOString()).toMatch('T08')
+  })
 })
 
 describe('halooglasi scraper', () => {
