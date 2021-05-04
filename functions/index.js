@@ -13,6 +13,8 @@ const billing = google_billing.cloudbilling('v1')
 const PROJECT_ID = process.env.GCLOUD_PROJECT
 const PROJECT_NAME = `projects/${PROJECT_ID}`
 
+const adminChatId = 838164104;
+
 // firestore paths
 const usersDocPath = '/scraping/users'
 const infoDocPath = '/scraping/info'
@@ -94,6 +96,7 @@ bot.command('/radius', async (ctx) => {
 })
 
 bot.command('/stop', async (ctx) => {
+  if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
   const rez = await updateScrapingInfo({ active: false })
   return ctx.reply(`Master switch turned off! ${rez}`)
 })
@@ -231,7 +234,7 @@ async function scrapeJob(lastScrapeDate) {
 exports.stopBilling = functions.runWith({ maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
-    functions.logger.info(`Recieved billing data: ${billingData}`)
+    functions.logger.info(`Recieved billing data: ${JSON.stringify(billingData)}`)
     return handleBillingPubSub(billingData).then(rez => {
       functions.logger.info(rez)
     })
