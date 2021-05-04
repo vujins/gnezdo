@@ -64,7 +64,9 @@ async function scrapeItem(url, type) {
     type,
     id: Id,
     title: Title,
-    validFrom: new Date(ValidFrom),
+    // Halooglasi returns dates in format '2021-05-04T10:11:43.32Z', Z at the end is refering to UTC time zone
+    // but the actual date from Halooglasi is refering to GMT +2
+    validFrom: new Date(ValidFrom?.replace('Z', '') ?? Date.now()),
     geoLocation,
     geohash,
     categories: CategoryNames,

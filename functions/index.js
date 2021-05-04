@@ -93,6 +93,11 @@ bot.command('/radius', async (ctx) => {
   return ctx.reply(`Search radius set to ${radius}km.`)
 })
 
+bot.command('/stop', async (ctx) => {
+  const rez = await updateScrapingInfo({ active: false })
+  return ctx.reply(`Master switch turned off! ${rez}`)
+})
+
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
@@ -144,7 +149,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
     }
 
     // cancle scraping if all users paused
-    const users = Object.values(await getUsers());
+    const users = Object.values(await getUsers())
     if (!users.some(user => user.active)) {
       functions.logger.info('Scraping paused - no active users')
       return Promise.resolve()
@@ -152,23 +157,24 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
 
     const lastScrapeDate = info.validFrom.toDate()
     // scrapeJob will write valid results to firestore, which will trigger notifications job
+    functions.logger.info(`Starting scraping job. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
     return scrapeJob(lastScrapeDate)
   } catch (err) {
     functions.logger.error(err)
     return Promise.reject()
   }
-});
+})
 
 // exports.fakeScheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
 //   try {
-//     await firestore.doc(infoDocPath).set({ active: true, validFrom: admin.firestore.Timestamp.fromMillis(Date.UTC(2021, 3, 20)) }, { merge: true })
+//     await updateScrapingInfo({ active: true, validFrom: admin.firestore.Timestamp.now() })
 //     await updateCurrentUser(838164104, {
 //       active: true,
 //       locations: {
 //         srytek82hu: [44.585291, 20.534001],
 //       },
 //       priceLimit: 200000,
-//       radius: 20,
+//       radius: 30,
 //     })
 
 //     // get date of last scrape
@@ -181,13 +187,14 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
 //     }
 
 //     // cancle scraping if all users paused
-//     const users = Object.values(await getUsers());
+//     const users = Object.values(await getUsers())
 //     if (!users.some(user => user.active)) {
 //       functions.logger.info('Scraping paused - no active users')
 //       return res.sendStatus(200)
 //     }
 
 //     const lastScrapeDate = info.validFrom.toDate()
+//     functions.logger.info(`Starting scraping job. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
 //     // scrapeJob will write valid results to firestore, which will trigger notifications job
 //     await scrapeJob(lastScrapeDate)
 //     return res.sendStatus(200)
@@ -195,23 +202,26 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
 //     functions.logger.error(err)
 //     return res.sendStatus(500)
 //   }
-// });
+// })
 
 async function scrapeJob(lastScrapeDate) {
+  const timestamp = admin.firestore.Timestamp.now()
   // scrape properties and filter for properties uploaded between last scrape and now
   const properties = await scrape()
   const validProperties = properties.filter(property => property.validFrom > lastScrapeDate)
+
+  functions.logger.info(`Scraping at: ${timestamp.toDate()} - validFrom: ${lastScrapeDate} - propertiesValidFrom: ${validProperties.map(p => p.validFrom)}`)
 
   // write all properties into firestore and trigger all subscribers
   const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
 
   // if nothing failed, update validFrom so next scrape will ignore already scraped properties
-  await firestore.doc(infoDocPath).set({ validFrom: admin.firestore.Timestamp.now() }, { merge: true })
+  await updateScrapingInfo({ validFrom: timestamp })
 
   const promoted = properties.filter(p => p.adKindCode === 'Premium').length
   const top = properties.filter(p => p.adKindCode === 'Top').length
   functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties,
-    ${promoted}/${top}/${properties.length} (promoted/top/total) at ${new Date()}`)
+    ${promoted}/${top}/${properties.length} (promoted/top/total) at ${timestamp.toDate()}`)
 
   return Promise.resolve()
 }
@@ -221,9 +231,10 @@ async function scrapeJob(lastScrapeDate) {
 exports.stopBilling = functions.runWith({ maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
-    const rez = await handleBillingPubSub(billingData)
-    functions.logger.info(rez)
-    return rez
+    functions.logger.info(`Recieved billing data: ${billingData}`)
+    return handleBillingPubSub(billingData).then(rez => {
+      functions.logger.info(rez)
+    })
   } catch (error) {
     return Promise.reject(`receiveBillingNotice function failed: ${error}`)
   }
@@ -320,4 +331,8 @@ async function resetUser(chatId) {
 
 async function getScrapingInfo() {
   return (await firestore.doc(infoDocPath).get()).data()
+}
+
+async function updateScrapingInfo(info) {
+  return await firestore.doc(infoDocPath).set(info, { merge: true })
 }

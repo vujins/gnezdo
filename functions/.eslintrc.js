@@ -12,6 +12,7 @@ module.exports = {
   plugins: ['jest'],
   rules: {
     'linebreak-style': 0,
+    'jest/expect-expect': 0,
   },
   parserOptions: {
     ecmaVersion: 12,
