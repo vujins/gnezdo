@@ -7,8 +7,9 @@ const geofire = require('geofire-common')
 
 async function scrape() {
   const promises = [
-    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${200000}&cena_d_unit=4&page=${1}`, types.houseSale),
-    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${200000}&cena_d_unit=4&page=${2}`, types.houseSale),
+    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${1}`, types.houseSale),
+    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${2}`, types.houseSale),
+    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${3}`, types.houseSale),
   ]
 
   return (await Promise.all(promises)).flat()

@@ -131,11 +131,11 @@ describe('halooglasi scraper', () => {
   });
 
   test('scrape should return numOfPages*20 objects', async () => {
-    await expect(scrape()).resolves.toHaveLength(40);
+    await expect(scrape()).resolves.toHaveLength(60);
   });
 
   test('scrape should return numOfPages*20 property objects', async () => {
-    await expect(scrape()).resolves.toEqual(expect.arrayContaining(Array(40).fill(expectedPropertyObject)));
+    await expect(scrape()).resolves.toEqual(expect.arrayContaining(Array(60).fill(expectedPropertyObject)));
   });
 
   test('scrape should not return properties with wrong ValidFrom date', async () => {
