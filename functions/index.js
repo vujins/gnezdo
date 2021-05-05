@@ -6,7 +6,9 @@ const google_compute = require('googleapis/build/src/apis/compute')
 const { GoogleAuth } = require('google-auth-library')
 const { scrape } = require('./scrapers/halooglasi/scraper')
 const geofire = require('geofire-common')
+const types = require('./utils/types')
 
+const typesToScrape = [types.houseSale, types.apartmentSale]
 const firestore = admin.initializeApp().firestore()
 firestore.settings({ ignoreUndefinedProperties: true })
 const billing = google_billing.cloudbilling('v1')
@@ -140,7 +142,7 @@ async function handleProperty(property) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').pubsub.schedule('*/15 * * * *').onRun(async () => {
+exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').pubsub.schedule('*/10 * * * *').onRun(async () => {
   try {
     // get date of last scrape
     const info = await getScrapingInfo()
@@ -160,8 +162,8 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
 
     const lastScrapeDate = info.validFrom.toDate()
     // scrapeJob will write valid results to firestore, which will trigger notifications job
-    functions.logger.info(`Starting scraping job. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
-    return scrapeJob(lastScrapeDate)
+    functions.logger.info(`Starting scraping job for: ${typesToScrape[info.nextScrape]}. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
+    return scrapeJob(lastScrapeDate, typesToScrape[info.nextScrape], info.nextScrape)
   } catch (err) {
     functions.logger.error(err)
     return Promise.reject()
@@ -207,10 +209,10 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 
 //   }
 // })
 
-async function scrapeJob(lastScrapeDate) {
+async function scrapeJob(lastScrapeDate, type, nextScrape) {
   const timestamp = admin.firestore.Timestamp.now()
   // scrape properties and filter for properties uploaded between last scrape and now
-  const properties = await scrape()
+  const properties = await scrape(type)
   const validProperties = properties.filter(property => property.validFrom > lastScrapeDate)
 
   functions.logger.info(`Scraping at: ${timestamp.toDate()} - validFrom: ${lastScrapeDate} - propertiesValidFrom: ${validProperties.map(p => p.validFrom)}`)
@@ -219,7 +221,7 @@ async function scrapeJob(lastScrapeDate) {
   const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
 
   // if nothing failed, update validFrom so next scrape will ignore already scraped properties
-  await updateScrapingInfo({ validFrom: timestamp })
+  await updateScrapingInfo({ validFrom: timestamp, nextScrape: (nextScrape + 1) % typesToScrape.length })
 
   const promoted = properties.filter(p => p.adKindCode === 'Premium').length
   const top = properties.filter(p => p.adKindCode === 'Top').length

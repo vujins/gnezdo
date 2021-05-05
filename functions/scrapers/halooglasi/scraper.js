@@ -5,12 +5,30 @@ const URL = require('../../utils/url')
 const types = require('../../utils/types')
 const geofire = require('geofire-common')
 
-async function scrape() {
-  const promises = [
-    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${1}`, types.houseSale),
-    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${2}`, types.houseSale),
-    scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${3}`, types.houseSale),
-  ]
+async function scrape(type) {
+  let promises;
+
+  switch (type) {
+    case types.houseSale: {
+      promises = [
+        scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${1}`, types.houseSale),
+        scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${2}`, types.houseSale),
+        scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${3}`, types.houseSale),
+      ]
+      break
+    }
+    case types.apartmentSale: {
+      promises = [
+        scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${1}`, types.apartmentSale),
+        scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${2}`, types.apartmentSale),
+        scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${3}`, types.apartmentSale),
+      ]
+      break
+    }
+    default:
+      throw new Error('Unkown scrape type!')
+  }
+
 
   return (await Promise.all(promises)).flat()
 }

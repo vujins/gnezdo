@@ -36,7 +36,7 @@ describe('halooglasi scraper', () => {
     geohash: expect.any(String),
     categories: expect.anything(),
     rooms: expect.any(String),
-    floors: expect.any(String),
+    // floors: expect.any(String), // only for houses
     // plot: expect.any(Number),
     // plotUnit: expect.any(String),
     city: expect.any(String),
@@ -44,7 +44,7 @@ describe('halooglasi scraper', () => {
     microlocation: expect.any(String),
     sqm: expect.any(Number),
     sqmUnit: expect.any(String),
-    street: expect.anything(),
+    // street: expect.anything(),
     price: expect.any(Number),
     priceUnit: expect.any(String),
     pricePerSqm: expect.any(Number),
@@ -63,6 +63,13 @@ describe('halooglasi scraper', () => {
     const url = 'https://www.halooglasi.com/nekretnine/prodaja-kuca/dedinje-veoma-luksuzna-kuca-uknjizena-id-1564/5425636240199?kid=4';
     await expect(scrapeItem(url, types.houseSale)).resolves.toEqual(expectedPropertyObject);
   });
+
+  test('scrapeItem apartment should have all info correctly', async () => {
+    const url = 'https://www.halooglasi.com/nekretnine/prodaja-stanova/top-lokacija-komforna-garsonjera-na-grbavici/5425636566510?kid=3&sid=1620242853597'
+    await expect(scrapeItem(url, types.apartmentSale)).resolves.toEqual(expectedPropertyObject);
+  });
+
+
 
   test('getList has 20 items', async () => {
     await expect(getList(URL.halooglasi[types.houseSale])).resolves.toHaveLength(20);
@@ -130,16 +137,29 @@ describe('halooglasi scraper', () => {
     await expect(scrapeList(URL.halooglasi[types.houseSale], types.houseSale)).resolves.toEqual(expect.arrayContaining(expectedArray));
   });
 
-  test('scrape should return numOfPages*20 objects', async () => {
-    await expect(scrape()).resolves.toHaveLength(60);
+  test('scrape house sale should return numOfPages*20 objects', async () => {
+    await expect(scrape(types.houseSale)).resolves.toHaveLength(60);
   });
 
-  test('scrape should return numOfPages*20 property objects', async () => {
-    await expect(scrape()).resolves.toEqual(expect.arrayContaining(Array(60).fill(expectedPropertyObject)));
+  test('scrape house sale should return numOfPages*20 property objects', async () => {
+    await expect(scrape(types.houseSale)).resolves.toEqual(expect.arrayContaining(Array(60).fill(expectedPropertyObject)));
   });
 
-  test('scrape should not return properties with wrong ValidFrom date', async () => {
-    const properties = await scrape()
+  test('scrape house sale should not return properties with wrong ValidFrom date', async () => {
+    const properties = await scrape(types.houseSale)
+    expect(properties.some(property => property.validFrom > new Date())).toBeFalsy()
+  });
+
+  test('scrape apartman sale should return numOfPages*20 objects', async () => {
+    await expect(scrape(types.apartmentSale)).resolves.toHaveLength(60);
+  });
+
+  test('scrape apartman sale should return numOfPages*20 property objects', async () => {
+    await expect(scrape(types.apartmentSale)).resolves.toEqual(expect.arrayContaining(Array(60).fill(expectedPropertyObject)));
+  });
+
+  test('scrape apartman sale should not return properties with wrong ValidFrom date', async () => {
+    const properties = await scrape(types.apartmentSale)
     expect(properties.some(property => property.validFrom > new Date())).toBeFalsy()
   });
 });
