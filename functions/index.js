@@ -23,7 +23,7 @@ const infoDocPath = '/scraping/info'
 
 const helpText = `
 Welcome to Gnezdo!
-/limit {amount} - set the price limit for your search.
+/limit {amount} - set the price limit for your search (amount can be 200k or 200000).
 /radius {km} - set the search radius in km for your locations.
 /go - start notifications.
 /pause - pause notifications.
@@ -82,7 +82,7 @@ bot.on('location', async (ctx) => {
 bot.command('/limit', async (ctx) => {
   // args[0] is the command, rest are arguments
   const args = ctx.message.text.split(' ')
-  const priceLimit = parseInt(args[1])
+  const priceLimit = parseInt(args[1].replace('k', '000'))
   const chatId = ctx.message.chat.id
   await updateCurrentUser(chatId, { priceLimit })
   return ctx.reply(`Price limit set to ${priceLimit} EUR.`)
@@ -130,7 +130,7 @@ async function handleProperty(property) {
     functions.logger.info(`Checking user {chatId: ${chatId}, priceLimit: ${priceLimit}, radius: ${radius}, locations: ${JSON.stringify(locationCoords)}} -
       property: {price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
     if (property.price < priceLimit && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
-      functions.logger.info(`Found property validFrom: ${property.validFrom} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
+      functions.logger.info(`Found property validFrom: ${JSON.stringify(property.validFrom)} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
 
       const msg = `${property.title}\nPrice: ${property.price}${property.priceUnit}\nTotal views: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
       bot.telegram.sendMessage(chatId, msg)
@@ -236,7 +236,7 @@ async function scrapeJob(lastScrapeDate, type, nextScrape) {
 exports.stopBilling = functions.runWith({ maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
-    functions.logger.info(`Recieved billing data: ${JSON.stringify(billingData)}`)
+    functions.logger.info(`Received billing data: ${JSON.stringify(billingData)}`)
     return handleBillingPubSub(billingData).then(rez => {
       functions.logger.info(rez)
     })
