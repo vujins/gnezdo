@@ -142,7 +142,7 @@ async function handleProperty(property) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.scheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').pubsub.schedule('*/10 * * * *').onRun(async () => {
+exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 }).region('europe-west1').pubsub.schedule('*/10 * * * *').onRun(async () => {
   try {
     // get date of last scrape
     const info = await getScrapingInfo()
