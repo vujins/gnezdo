@@ -160,10 +160,11 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
       return Promise.resolve()
     }
 
-    const lastScrapeDate = info.validFrom.toDate()
+    const type = typesToScrape[info.nextScrape]
+    const lastScrapeDate = info.validFrom[type].toDate()
     // scrapeJob will write valid results to firestore, which will trigger notifications job
-    functions.logger.info(`Starting scraping job for: ${typesToScrape[info.nextScrape]}. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
-    return scrapeJob(lastScrapeDate, typesToScrape[info.nextScrape], info.nextScrape)
+    functions.logger.info(`Starting scraping job for: ${type}. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
+    return scrapeJob(lastScrapeDate, type, info.nextScrape)
   } catch (err) {
     functions.logger.error(err)
     return Promise.reject()
@@ -221,7 +222,7 @@ async function scrapeJob(lastScrapeDate, type, nextScrape) {
   const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
 
   // if nothing failed, update validFrom so next scrape will ignore already scraped properties
-  await updateScrapingInfo({ validFrom: timestamp, nextScrape: (nextScrape + 1) % typesToScrape.length })
+  await updateScrapingInfo({ validFrom: { [type]: timestamp }, lastScrape: timestamp, nextScrape: (nextScrape + 1) % typesToScrape.length })
 
   const promoted = properties.filter(p => p.adKindCode === 'Premium').length
   const top = properties.filter(p => p.adKindCode === 'Top').length
