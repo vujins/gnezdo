@@ -28,6 +28,7 @@ Welcome to Gnezdo!
 /go - start notifications.
 /pause - pause notifications.
 /reset - reset ALL search parameters.
+/type {types seperated by space} - available: house-sale, house-rent, apartment-sale, apartmant-rent, other-sale, other-rent (room, apartmant in house, etc.). Default all. (e.g. /type house-sale apartmant-sale)
 Send custom location to search in the set radius around sent locations.
 `
 
@@ -97,10 +98,27 @@ bot.command('/radius', async (ctx) => {
   return ctx.reply(`Search radius set to ${radius}km.`)
 })
 
+bot.command('/type', async (ctx) => {
+  // args[0] is the command, rest are arguments
+  const args = ctx.message.text.split(' ')
+  const types = args.slice(1)
+  const chatId = ctx.message.chat.id
+  await updateCurrentUser(chatId, { types })
+  return ctx.reply(`Types set to ${types}`)
+})
+
 bot.command('/stop', async (ctx) => {
   if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
   const rez = await updateScrapingInfo({ active: false })
   return ctx.reply(`Master switch turned off! ${rez}`)
+})
+
+bot.command('/broadcast', async (ctx) => {
+  if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
+  const args = ctx.message.text.split(' ')
+  const msg = args[1]
+  const users = await getUsers()
+  return Promise.all(Object.keys(users).map(chatId => bot.telegram.sendMessage(chatId, msg)))
 })
 
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
@@ -132,7 +150,7 @@ async function handleProperty(property) {
     if (property.price < priceLimit && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
       functions.logger.info(`Found property validFrom: ${JSON.stringify(property.validFrom)} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
 
-      const msg = `${property.title}\nCena: ${property.price}${property.priceUnit}\nBroj pregleda: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
+      const msg = `${property.title}\nCena: ${property.price} ${property.priceUnit}\nCena po kvadratu: ${property.pricePerSize} m2/EUR\nBroj pregleda: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
       bot.telegram.sendMessage(chatId, msg)
     }
   }

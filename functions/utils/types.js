@@ -6,6 +6,8 @@ const types = Object.freeze({
   apartmentRent: 'apartment-rent',
   landSale: 'land-sale',
   landRent: 'land-rent',
+  otherSale: 'other-sale',
+  otherRent: 'other-rent',
 });
 
 module.exports = types;
