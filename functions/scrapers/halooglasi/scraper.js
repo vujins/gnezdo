@@ -36,9 +36,7 @@ async function scrape(type) {
 async function scrapeList(url, type) {
   const list = await getList(url)
   const settledPromises = await Promise.allSettled(list.map(propertyUrl => scrapeItem(`${URL.halooglasi.baseUrl}${propertyUrl}`, type)))
-  return settledPromises
-    .filter(p => p.status === 'fulfilled')
-    .map(p => p.value)
+  return settledPromises.filter(p => p.status === 'fulfilled').map(p => p.value)
 }
 
 async function getList(url) {

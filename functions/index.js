@@ -4,7 +4,8 @@ const admin = require('firebase-admin')
 const google_billing = require('googleapis/build/src/apis/cloudbilling')
 const google_compute = require('googleapis/build/src/apis/compute')
 const { GoogleAuth } = require('google-auth-library')
-const { scrape } = require('./scrapers/halooglasi/scraper')
+const scrapeHalooglasi = require('./scrapers/halooglasi/scraper').scrape
+const scrapeCityExpert = require('./scrapers/cityexpert/scraper').scrape
 const geofire = require('geofire-common')
 const types = require('./utils/types')
 
@@ -139,7 +140,7 @@ async function handleProperty(property) {
   const users = await getUsers()
 
   for (const chatId in users) {
-    const { locations, radius, active, priceLimit } = users[chatId]
+    const { locations, radius, active, priceLimit, types } = users[chatId]
     if (!active) {
       functions.logger.log(`Skipping user: ${chatId} - not active`)
       continue
@@ -147,7 +148,7 @@ async function handleProperty(property) {
     const locationCoords = Object.values(locations)
     functions.logger.info(`Checking user {chatId: ${chatId}, priceLimit: ${priceLimit}, radius: ${radius}, locations: ${JSON.stringify(locationCoords)}} -
       property: {price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
-    if (property.price < priceLimit && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
+    if (property.price < priceLimit && (!types || types.includes(property.type)) && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
       functions.logger.info(`Found property validFrom: ${JSON.stringify(property.validFrom)} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
 
       const msg = `${property.title}\nCena: ${property.price} ${property.priceUnit}\nCena po kvadratu: ${property.pricePerSize} m2/EUR\nBroj pregleda: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
@@ -231,7 +232,12 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
 async function scrapeJob(lastScrapeDate, type, nextScrape) {
   const timestamp = admin.firestore.Timestamp.now()
   // scrape properties and filter for properties uploaded between last scrape and now
-  const properties = await scrape(type)
+  const promises = [
+    await scrapeHalooglasi(type),
+    await scrapeCityExpert(),
+  ]
+  const settledPromises = await Promise.allSettled(promises)
+  const properties = settledPromises.filter(p => p.status === 'fulfilled').map(p => p.value).flat()
   const validProperties = properties.filter(property => property.validFrom > lastScrapeDate)
 
   functions.logger.info(`Scraping at: ${timestamp.toDate()} - validFrom: ${lastScrapeDate} - propertiesValidFrom: ${validProperties.map(p => p.validFrom)}`)
@@ -239,15 +245,14 @@ async function scrapeJob(lastScrapeDate, type, nextScrape) {
   // write all properties into firestore and trigger all subscribers
   const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
 
-  // if nothing failed, update validFrom so next scrape will ignore already scraped properties
-  await updateScrapingInfo({ validFrom: { [type]: timestamp }, lastScrape: timestamp, nextScrape: (nextScrape + 1) % typesToScrape.length })
-
   const promoted = properties.filter(p => p.adKindCode === 'Premium').length
   const top = properties.filter(p => p.adKindCode === 'Top').length
-  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties,
-    ${promoted}/${top}/${properties.length} (promoted/top/total) at ${timestamp.toDate()}`)
+  const standard = properties.filter(p => p.adKindCode === 'Standard').length
+  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties!`)
+  functions.logger.info(`Halooglasi: ${promoted}/${top}/${standard} (promoted/top/standard) at ${timestamp.toDate()}`)
 
-  return Promise.resolve()
+  // if nothing failed, update validFrom so next scrape will ignore already scraped properties
+  return updateScrapingInfo({ validFrom: { [type]: timestamp }, lastScrape: timestamp, nextScrape: (nextScrape + 1) % typesToScrape.length })
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
