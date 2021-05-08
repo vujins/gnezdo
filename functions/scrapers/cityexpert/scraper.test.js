@@ -13,7 +13,7 @@ describe('cityexpert scraper', () => {
   const expectedPropertyObject = expect.objectContaining({
     url: expect.stringMatching(urlregex),
     // imageURLs: expect.anything(),
-    type: expect.any(String),
+    type: expect.stringMatching(/(house-sale|house-rent|apartment-sale|apartment-rent|land-sale|land-rent|other-sale|other-rent)/),
     id: expect.any(Number),
     title: expect.any(String),
     validFrom: expect.any(Date),

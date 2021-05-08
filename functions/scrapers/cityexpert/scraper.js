@@ -18,8 +18,8 @@ const translate = {
 }
 
 const propertyTypeConversion = {
-  1: 'house', //"stan",
-  2: 'apartment', //"kuca",
+  1: 'apartment', //"stan",
+  2: 'house', //"kuca",
   3: 'other', //"poslovni-prostor",
   4: 'other', //"lokal",
   5: 'other', //"stan-u-kuci",

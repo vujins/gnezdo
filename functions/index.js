@@ -29,7 +29,7 @@ Welcome to Gnezdo!
 /go - start notifications.
 /pause - pause notifications.
 /reset - reset ALL search parameters.
-/type {types seperated by space} - available: house-sale, house-rent, apartment-sale, apartmant-rent, other-sale, other-rent (room, apartmant in house, etc.). Default all. (e.g. /type house-sale apartmant-sale)
+/type {types seperated by space} - available: [house-sale, apartment-sale, other-sale] (other means room, apartmant in house, etc.). Default all. (e.g. /type house-sale apartmant-sale)
 Send custom location to search in the set radius around sent locations.
 `
 
@@ -162,6 +162,32 @@ async function handleProperty(property) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
 
 exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 }).region('europe-west1').pubsub.schedule('*/10 * * * *').onRun(async () => {
+  return handleScheduledScrapeJob()
+})
+
+// exports.fakeScheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
+//   try {
+//     const d = admin.firestore.Timestamp.fromDate(new Date("2021-04-01T12:00:45.36"))
+//     await updateScrapingInfo({ active: true, validFrom: { 'apartment-sale': d, 'house-sale': d }, lastScrape: d, nextScrape: 0 })
+//     await updateCurrentUser(838164104, {
+//       active: true,
+//       locations: {
+//         srytek82hu: [44.585291, 20.534001],
+//       },
+//       priceLimit: 200000,
+//       radius: 100,
+//       types: ['house-sale']
+//     })
+
+//     await handleScheduledScrapeJob()
+//     return res.sendStatus(200)
+//   } catch (err) {
+//     functions.logger.error(err)
+//     return res.sendStatus(500)
+//   }
+// })
+
+async function handleScheduledScrapeJob() {
   try {
     // get date of last scrape
     const info = await getScrapingInfo()
@@ -180,76 +206,38 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
     }
 
     const type = typesToScrape[info.nextScrape]
-    const lastScrapeDate = info.validFrom[type].toDate()
+    const lastScrapeDateForType = info.validFrom[type].toDate()
+    const lastScrapeDate = info.lastScrape.toDate()
     // scrapeJob will write valid results to firestore, which will trigger notifications job
-    functions.logger.info(`Starting scraping job for: ${type}. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
-    return scrapeJob(lastScrapeDate, type, info.nextScrape)
+    return scrapeJob(lastScrapeDate, lastScrapeDateForType, type, info.nextScrape)
   } catch (err) {
     functions.logger.error(err)
     return Promise.reject()
   }
-})
+}
 
-// exports.fakeScheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
-//   try {
-//     await updateScrapingInfo({ active: true, validFrom: admin.firestore.Timestamp.fromDate(new Date("2021-05-04T12:00:45.36")) })
-//     await updateCurrentUser(838164104, {
-//       active: true,
-//       locations: {
-//         srytek82hu: [44.585291, 20.534001],
-//       },
-//       priceLimit: 200000,
-//       radius: 30,
-//     })
-
-//     // get date of last scrape
-//     const info = await getScrapingInfo()
-
-//     // cancle scraping if paused
-//     if (!info.active) {
-//       functions.logger.info('Scraping paused - master switch')
-//       return res.sendStatus(200)
-//     }
-
-//     // cancle scraping if all users paused
-//     const users = Object.values(await getUsers())
-//     if (!users.some(user => user.active)) {
-//       functions.logger.info('Scraping paused - no active users')
-//       return res.sendStatus(200)
-//     }
-
-//     const lastScrapeDate = info.validFrom.toDate()
-//     functions.logger.info(`Starting scraping job. Looking for properties valid from: ${lastScrapeDate} at ${admin.firestore.Timestamp.now().toDate()}`)
-//     // scrapeJob will write valid results to firestore, which will trigger notifications job
-//     await scrapeJob(lastScrapeDate)
-//     return res.sendStatus(200)
-//   } catch (err) {
-//     functions.logger.error(err)
-//     return res.sendStatus(500)
-//   }
-// })
-
-async function scrapeJob(lastScrapeDate, type, nextScrape) {
+async function scrapeJob(lastScrapeDate, lastScrapeDateForType, type, nextScrape) {
   const timestamp = admin.firestore.Timestamp.now()
   // scrape properties and filter for properties uploaded between last scrape and now
-  const promises = [
-    await scrapeHalooglasi(type),
-    await scrapeCityExpert(),
-  ]
-  const settledPromises = await Promise.allSettled(promises)
-  const properties = settledPromises.filter(p => p.status === 'fulfilled').map(p => p.value).flat()
-  const validProperties = properties.filter(property => property.validFrom > lastScrapeDate)
+  functions.logger.info(`Starting scraping job for Halooglasi for type: ${type}. Looking for properties valid from: ${lastScrapeDateForType}.`)
+  const propertiesHO = await scrapeHalooglasi(type)
+  functions.logger.info(`Starting scraping job for CityExpert. Looking for properties valid from: ${lastScrapeDate}.`)
+  const propertiesCE = await scrapeCityExpert()
 
-  functions.logger.info(`Scraping at: ${timestamp.toDate()} - validFrom: ${lastScrapeDate} - propertiesValidFrom: ${validProperties.map(p => p.validFrom)}`)
+  const validPropertiesHO = propertiesHO.filter(property => property.validFrom > lastScrapeDateForType)
+  const validPropertiesCE = propertiesCE.filter(property => property.validFrom > lastScrapeDate)
+
+  const validProperties = [...validPropertiesCE, ...validPropertiesHO]
 
   // write all properties into firestore and trigger all subscribers
   const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
 
-  const promoted = properties.filter(p => p.adKindCode === 'Premium').length
-  const top = properties.filter(p => p.adKindCode === 'Top').length
-  const standard = properties.filter(p => p.adKindCode === 'Standard').length
-  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${properties.length} (valid/total) properties!`)
-  functions.logger.info(`Halooglasi: ${promoted}/${top}/${standard} (promoted/top/standard) at ${timestamp.toDate()}`)
+  const promoted = propertiesHO.filter(p => p.adKindCode === 'Premium').length
+  const top = propertiesHO.filter(p => p.adKindCode === 'Top').length
+  const standard = propertiesHO.filter(p => p.adKindCode === 'Standard').length
+  functions.logger.info(`Saved ${propertyRefs.length} new out of ${validProperties.length}/${propertiesHO.length + propertiesCE.length} (valid/total) properties!`)
+  functions.logger.info(`CityExpres: ${validPropertiesCE.length}/${propertiesCE.length} (valid/total)`)
+  functions.logger.info(`Halooglasi: ${standard}/${top}/${promoted} (standard/top/promoted) out of ${validPropertiesHO.length}/${propertiesHO.length} (valid/total)`)
 
   // if nothing failed, update validFrom so next scrape will ignore already scraped properties
   return updateScrapingInfo({ validFrom: { [type]: timestamp }, lastScrape: timestamp, nextScrape: (nextScrape + 1) % typesToScrape.length })
