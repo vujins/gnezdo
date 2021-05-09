@@ -9,7 +9,7 @@ describe('lng.json', () => {
 })
 
 describe('cityexpert scraper', () => {
-  const urlregex = /https:\/\/cityexpert.rs\/(prodaja|izdavanje)\/(stan|kuca|poslovni-prostor|lokal|stan-u-kuci|soba|apartman|splav)\/\d+\/.+/
+  const urlregex = /https:\/\/cityexpert\.rs\/(prodaja|izdavanje)\/(stan|kuca|poslovni-prostor|lokal|stan-u-kuci|soba|apartman|splav)\/\d+\/.+/
   const expectedPropertyObject = expect.objectContaining({
     url: expect.stringMatching(urlregex),
     // imageURLs: expect.anything(),

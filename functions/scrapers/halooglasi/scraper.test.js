@@ -26,28 +26,28 @@ describe('halooglasi wrong time zone', () => {
 describe('halooglasi scraper', () => {
 
   const expectedPropertyObject = expect.objectContaining({
-    url: expect.any(String),
+    url: expect.stringMatching(/https:\/\/www\.halooglasi\.com\/nekretnine\/(prodaja|izdavanje)-(stanova|kuca|zemljista)\/.+/),
     imageURLs: expect.anything(),
-    type: expect.any(String),
+    type: expect.stringMatching(/(house-sale|house-rent|apartment-sale|apartment-rent|land-sale|land-rent)/),
     id: expect.any(String),
     title: expect.any(String),
     validFrom: expect.any(Date),
     geoLocation: expect.arrayContaining([expect.any(Number), expect.any(Number)]),
     geohash: expect.any(String),
     categories: expect.anything(),
-    rooms: expect.any(String),
+    // rooms: expect.any(String),
     // floors: expect.any(String), // only for houses
     // plot: expect.any(Number),
     // plotUnit: expect.any(String),
     city: expect.any(String),
     location: expect.any(String),
     microlocation: expect.any(String),
-    sqm: expect.any(Number),
-    sqmUnit: expect.any(String),
+    // sqm: expect.any(Number),
+    // sqmUnit: expect.any(String),
     // street: expect.anything(),
     price: expect.any(Number),
     priceUnit: expect.any(String),
-    pricePerSqm: expect.any(Number),
+    // pricePerSqm: expect.any(Number),
     avaragePricePerSqm: expect.anything(),
     avaragePricePerSqmLink: expect.anything(),
     advertiser: expect.any(String),
@@ -160,6 +160,24 @@ describe('halooglasi scraper', () => {
 
   test('scrape apartman sale should not return properties with wrong ValidFrom date', async () => {
     const properties = await scrape(types.apartmentSale)
+    expect(properties.some(property => property.validFrom > new Date())).toBeFalsy()
+  });
+
+  test('scrape land sale should return numOfPages*20 objects', async () => {
+    await expect(scrape(types.landSale)).resolves.toHaveLength(20);
+  });
+
+  test('scrape land sale should return property objects', async () => {
+    const properties = await scrape(types.landSale)
+    expect(properties[0]).toEqual(expectedPropertyObject);
+  });
+
+  test('scrape land sale should return numOfPages*20 property objects', async () => {
+    await expect(scrape(types.landSale)).resolves.toEqual(expect.arrayContaining(Array(20).fill(expectedPropertyObject)));
+  });
+
+  test('scrape land sale should not return properties with wrong ValidFrom date', async () => {
+    const properties = await scrape(types.landSale)
     expect(properties.some(property => property.validFrom > new Date())).toBeFalsy()
   });
 });

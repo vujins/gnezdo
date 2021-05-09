@@ -25,6 +25,12 @@ async function scrape(type) {
       ]
       break
     }
+    case types.landSale: {
+      promises = [
+        scrapeList(`${URL.halooglasi[types.landSale]}/beograd?cena_d_to=${100000}&cena_d_unit=4&page=${1}`, types.landSale)
+      ]
+      break
+    }
     default:
       throw new Error('Unkown scrape type!')
   }
@@ -68,7 +74,7 @@ async function scrapeItem(url, type) {
     virtualConsole,
   })
   const { window } = dom
-  const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s, ImageURLs }
+  const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s, ImageURLs, povrsina_d, povrsina_d_unit_s }
     = window.QuidditaEnvironment?.CurrentClassified
   const { AdKindCode } = window.QuidditaEnvironment?.CurrentClassifiedInstances[0]
   const [lat, lng] = GeoLocationRPT.split(',')
@@ -92,8 +98,8 @@ async function scrapeItem(url, type) {
     categories: CategoryNames,
     rooms: broj_soba_s,
     floors: spratnost_s,
-    plot: povrsina_placa_d,
-    plotUnit: povrsina_placa_d_unit_s,
+    plot: povrsina_placa_d ?? povrsina_d,
+    plotUnit: povrsina_placa_d_unit_s ?? povrsina_d_unit_s,
     city: grad_s,
     location: lokacija_s,
     microlocation: mikrolokacija_s,
@@ -102,7 +108,7 @@ async function scrapeItem(url, type) {
     sqmUnit: kvadratura_d_unit_s,
     price: cena_d,
     priceUnit: cena_d_unit_s,
-    pricePerSqm: Math.floor(cena_d / kvadratura_d),
+    pricePerSqm: Math.floor(cena_d / kvadratura_d ?? povrsina_placa_d ?? povrsina_d),
     avaragePricePerSqm: AveragePriceBySurfaceValue,
     avaragePricePerSqmLink: AveragePriceBySurfaceLink,
     advertiser: oglasivac_nekretnine_s,
