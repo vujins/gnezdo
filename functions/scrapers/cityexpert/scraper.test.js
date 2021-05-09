@@ -77,19 +77,19 @@ describe('cityexpert scraper', () => {
   })
 
   test('getProperties returns 120 properties, 60 per city', async () => {
-    const properties = await getProperties();
+    const properties = await getProperties()
 
     expect(properties.length).toEqual(120)
   })
 
   test('scrape returns 120 properties, 60 per city', async () => {
-    const properties = await scrape();
+    const properties = await scrape()
 
     expect(properties.length).toEqual(120)
   })
 
   test('scrape returns 120 properties of expected type', async () => {
-    const properties = await scrape();
+    const properties = await scrape()
 
     expect(properties).toEqual(Array(120).fill(expectedPropertyObject))
   })
@@ -101,7 +101,7 @@ describe('cityexpert scraper', () => {
   })
 
   test('scrape returns 120 property urls of expected type', async () => {
-    const properties = await scrape();
+    const properties = await scrape()
     const urls = properties.map(p => p.url)
     const faultyUrl = urls.find(url => !urlregex.test(url))
 
@@ -109,13 +109,13 @@ describe('cityexpert scraper', () => {
   })
 
   test('scrape returns 1 property of expected type', async () => {
-    const properties = await scrape();
+    const properties = await scrape()
 
     expect(properties[0]).toEqual(expectedPropertyObject)
   })
 
   test('scrape returns 120 properties of valid dates', async () => {
-    const properties = await scrape();
+    const properties = await scrape()
 
     expect(properties.some(p => p.validFrom > new Date())).toBeFalsy()
   })

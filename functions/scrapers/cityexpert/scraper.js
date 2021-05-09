@@ -34,7 +34,7 @@ const cities = {
 }
 
 async function scrape() {
-  const properties = await getProperties();
+  const properties = await getProperties()
 
   return properties.map(property => {
     const [lat, lng] = property.location.split(',')

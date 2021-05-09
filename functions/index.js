@@ -9,14 +9,14 @@ const scrapeCityExpert = require('./scrapers/cityexpert/scraper').scrape
 const geofire = require('geofire-common')
 const types = require('./utils/types')
 
-const typesToScrape = [types.houseSale, types.apartmentSale]
+const typesToScrape = [types.houseSale, types.apartmentSale, types.landSale]
 const firestore = admin.initializeApp().firestore()
 firestore.settings({ ignoreUndefinedProperties: true })
 const billing = google_billing.cloudbilling('v1')
 const PROJECT_ID = process.env.GCLOUD_PROJECT
 const PROJECT_NAME = `projects/${PROJECT_ID}`
 
-const adminChatId = 838164104;
+const adminChatId = 838164104
 
 // firestore paths
 const usersDocPath = '/scraping/users'
@@ -175,7 +175,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
 // exports.fakeScheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
 //   try {
 //     const d = admin.firestore.Timestamp.fromDate(new Date("2021-04-01T12:00:45.36"))
-//     await updateScrapingInfo({ active: true, validFrom: { 'apartment-sale': d, 'house-sale': d }, lastScrape: d, nextScrape: 0 })
+//     await updateScrapingInfo({ active: true, validFrom: { 'apartment-sale': d, 'house-sale': d, 'land-sale': d }, lastScrape: d, nextScrape: 2 })
 //     await updateCurrentUser(838164104, {
 //       active: true,
 //       locations: {
@@ -183,7 +183,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
 //       },
 //       priceLimit: 200000,
 //       radius: 100,
-//       types: ['house-sale']
+//       types: ['house-sale', 'land-sale']
 //     })
 
 //     await handleScheduledScrapeJob()
