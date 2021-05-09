@@ -158,7 +158,7 @@ async function handleProperty(property) {
     if (property.price < priceLimit && (!types || types.includes(property.type)) && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
       functions.logger.info(`Found property validFrom: ${JSON.stringify(property.validFrom)} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
 
-      const msg = `${property.title}\nCena: ${property.price} ${property.priceUnit}\nCena po kvadratu: ${property.pricePerSize} m2/EUR\nBroj pregleda: ${property.totalViews}\n${property.city} - ${property.location} - ${property.microlocation}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nPovršina placa: ${property.plot} ${property.plotUnit}\n${property.url}\n`
+      const msg = `${property.title}\nBroj pregleda: ${property.totalViews}\nCena: ${property.price} ${property.priceUnit}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nCena po kvadratu: ${property.pricePerSqm} ${property.priceUnit}/EUR\nPovršina placa: ${property.plot} ${property.plotUnit}\nCena po aru: ${property.pricePerPlotSqm} ${property.plotUnit}/EUR\n${property.city} - ${property.location} - ${property.microlocation}\n${property.url}\n`
       bot.telegram.sendMessage(chatId, msg)
     }
   }
