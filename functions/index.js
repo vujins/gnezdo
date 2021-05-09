@@ -24,6 +24,7 @@ const infoDocPath = '/scraping/info'
 
 const helpText = `
 Welcome to Gnezdo!
+/help - get this help text.
 /limit {amount} - set the price limit for your search (amount can be 200k or 200000).
 /radius {km} - set the search radius in km for your locations.
 /go - start notifications.
@@ -49,6 +50,10 @@ bot.command('/start', async (ctx) => {
   const chatId = ctx.message.chat.id
   functions.logger.info(`Users ${chatId} search is registered!`)
   await updateCurrentUser(chatId, { active: false })
+  return ctx.reply(helpText)
+})
+
+bot.command('/help', async (ctx) => {
   return ctx.reply(helpText)
 })
 
@@ -108,6 +113,7 @@ bot.command('/type', async (ctx) => {
   return ctx.reply(`Types set to ${types}`)
 })
 
+// admin commands
 bot.command('/stop', async (ctx) => {
   if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
   const rez = await updateScrapingInfo({ active: false })
@@ -117,11 +123,12 @@ bot.command('/stop', async (ctx) => {
 bot.command('/broadcast', async (ctx) => {
   if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
   const args = ctx.message.text.split(' ')
-  const msg = args[1]
+  const msg = args.slice(1).join(' ')
   const users = await getUsers()
   return Promise.all(Object.keys(users).map(chatId => bot.telegram.sendMessage(chatId, msg)))
 })
 
+// ping
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
