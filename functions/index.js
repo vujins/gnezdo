@@ -30,7 +30,7 @@ Welcome to Gnezdo!
 /go - start notifications.
 /pause - pause notifications.
 /reset - reset ALL search parameters.
-/type {types seperated by space} - available: [house-sale, apartment-sale, other-sale] (other means room, apartmant in house, etc.). Default all. (e.g. /type house-sale apartmant-sale)
+/type {types seperated by space} - available: [house-sale, apartment-sale, apartment-rent, other-sale] (other means room, apartmant in house, etc.). Default all. (e.g. /type house-sale apartmant-sale)
 Send custom location to search in the set radius around sent locations.
 `
 
@@ -139,12 +139,21 @@ exports.registrationBot = functions.runWith({ maxInstances: 1 }).region('europe-
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.notifications = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').firestore.document('properties/{docId}').onCreate(docSnap => {
-  return handleProperty(docSnap.data())
+exports.notifications = functions.runWith({ maxInstances: 1 }).region('europe-west1').firestore.document('properties/{docId}').onWrite(change => {
+  if (!change.after.exists) { // if property is deleted
+    functions.logger.info(`Skipping property ${change.before.data().id}. Reason: deleted!`)
+    return Promise.resolve()
+  }
+  if (change.before.exists && change.before.data().price === change.after.data().price) { // if property is updated but price stays the same
+    functions.logger.info(`Skipping property ${change.before.data().id}. Reason: price the same!`)
+    return Promise.resolve()
+  }
+  return handleProperty(change.after.data()) // if property is new or price changed
 })
 
 async function handleProperty(property) {
   const users = await getUsers()
+  const promises = []
 
   for (const chatId in users) {
     const { locations, radius, active, priceLimit, types } = users[chatId]
@@ -154,16 +163,16 @@ async function handleProperty(property) {
     }
     const locationCoords = Object.values(locations)
     functions.logger.info(`Checking user {chatId: ${chatId}, priceLimit: ${priceLimit}, radius: ${radius}, locations: ${JSON.stringify(locationCoords)}} -
-      property: {price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
+      property: {id: ${property.id} price: ${property.price}, location: ${JSON.stringify(property.geoLocation)}}`)
     if (property.price < priceLimit && (!types || types.includes(property.type)) && locationCoords.some(loc => geofire.distanceBetween(loc, property.geoLocation) <= radius)) {
-      functions.logger.info(`Found property validFrom: ${JSON.stringify(property.validFrom)} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
+      functions.logger.info(`Found property: ${property.id}, validFrom: ${JSON.stringify(property.validFrom)} at ${admin.firestore.Timestamp.now().toDate()} for user ${chatId}: ${property.url}`)
 
-      const msg = `${property.title}\nBroj pregleda: ${property.totalViews}\nCena: ${property.price} ${property.priceUnit}\nKvadratura: ${property.sqm} ${property.sqmUnit}\nCena po kvadratu: ${property.pricePerSqm} ${property.priceUnit}/EUR\nPovršina placa: ${property.plot} ${property.plotUnit}\nCena po aru: ${property.pricePerPlotSqm} ${property.plotUnit}/EUR\n${property.city} - ${property.location} - ${property.microlocation}\n${property.url}\n`
-      bot.telegram.sendMessage(chatId, msg)
+      const msg = `${property.title}\nBroj pregleda: ${property.totalViews}\nCena: ${property.price} ${property.priceUnit}\n${property.sqm ? `Kvadratura: ${property.sqm} ${property.sqmUnit}\n` : ''}${property.pricePerSqm ? `Cena po kvadratu: ${property.pricePerSqm} ${property.priceUnit}/${property.sqmUnit}\n` : ''}${property.plot ? `Površina placa: ${property.plot} ${property.plotUnit}\n` : ''}${property.pricePerPlotSqm ? `Cena po aru: ${property.pricePerPlotSqm} ${property.priceUnit}/${property.plotUnit}\n` : ''}${property.city} - ${property.location} - ${property.microlocation}\n${property.url}`
+      promises.push(bot.telegram.sendMessage(chatId, msg))
     }
   }
 
-  return Promise.resolve()
+  return Promise.all(promises)
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ SCRAPING ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -172,7 +181,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
   return handleScheduledScrapeJob()
 })
 
-// exports.fakeScheduledScrapeJob = functions.runWith({ memory: '512MB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
+// exports.fakeScheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
 //   try {
 //     const d = admin.firestore.Timestamp.fromDate(new Date("2021-04-01T12:00:45.36"))
 //     await updateScrapingInfo({ active: true, validFrom: { 'apartment-sale': d, 'house-sale': d, 'land-sale': d }, lastScrape: d, nextScrape: 2 })
@@ -184,6 +193,7 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
 //       priceLimit: 200000,
 //       radius: 100,
 //       types: ['house-sale', 'land-sale']
+//       // types: ['apartment-sale']
 //     })
 
 //     await handleScheduledScrapeJob()
@@ -226,10 +236,8 @@ async function handleScheduledScrapeJob() {
 async function scrapeJob(lastScrapeDate, lastScrapeDateForType, type, nextScrape) {
   const timestamp = admin.firestore.Timestamp.now()
   // scrape properties and filter for properties uploaded between last scrape and now
-  functions.logger.info(`Starting scraping job for Halooglasi for type: ${type}. Looking for properties valid from: ${lastScrapeDateForType}.`)
-  const propertiesHO = await scrapeHalooglasi(type)
-  functions.logger.info(`Starting scraping job for CityExpert. Looking for properties valid from: ${lastScrapeDate}.`)
-  const propertiesCE = await scrapeCityExpert()
+  functions.logger.info(`Starting scraping job for Halooglasi for type: ${type}. Looking for properties valid from: ${lastScrapeDateForType}. Starting scraping job for CityExpert. Looking for properties valid from: ${lastScrapeDate}.`)
+  const [propertiesHO, propertiesCE] = await Promise.all([scrapeHalooglasi(type), scrapeCityExpert()])
 
   const validPropertiesHO = propertiesHO.filter(property => property.validFrom > lastScrapeDateForType)
   const validPropertiesCE = propertiesCE.filter(property => property.validFrom > lastScrapeDate)
@@ -237,7 +245,7 @@ async function scrapeJob(lastScrapeDate, lastScrapeDateForType, type, nextScrape
   const validProperties = [...validPropertiesCE, ...validPropertiesHO]
 
   // write all properties into firestore and trigger all subscribers
-  const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').add(property)))
+  const propertyRefs = await Promise.all(validProperties.map(property => firestore.collection('properties').doc(property.id).set(property)))
 
   const promoted = propertiesHO.filter(p => p.adKindCode === 'Premium').length
   const top = propertiesHO.filter(p => p.adKindCode === 'Top').length

@@ -14,7 +14,7 @@ describe('cityexpert scraper', () => {
     url: expect.stringMatching(urlregex),
     // imageURLs: expect.anything(),
     type: expect.stringMatching(/(house-sale|house-rent|apartment-sale|apartment-rent|land-sale|land-rent|other-sale|other-rent)/),
-    id: expect.any(Number),
+    id: expect.any(String),
     title: expect.any(String),
     validFrom: expect.any(Date),
     geoLocation: expect.arrayContaining([expect.any(Number), expect.any(Number)]),
@@ -76,22 +76,22 @@ describe('cityexpert scraper', () => {
     expect(location).toEqual(expectedLocation)
   })
 
-  test('getProperties returns 120 properties, 60 per city', async () => {
+  test('getProperties returns 240 properties, 60 per city', async () => {
     const properties = await getProperties()
 
-    expect(properties.length).toEqual(120)
+    expect(properties.length).toEqual(240)
   })
 
-  test('scrape returns 120 properties, 60 per city', async () => {
+  test('scrape returns 240 properties, 60 per city', async () => {
     const properties = await scrape()
 
-    expect(properties.length).toEqual(120)
+    expect(properties.length).toEqual(240)
   })
 
-  test('scrape returns 120 properties of expected type', async () => {
+  test('scrape returns 240 properties of expected type', async () => {
     const properties = await scrape()
 
-    expect(properties).toEqual(Array(120).fill(expectedPropertyObject))
+    expect(properties).toEqual(Array(240).fill(expectedPropertyObject))
   })
 
   test('regex matches url', () => {
@@ -100,7 +100,7 @@ describe('cityexpert scraper', () => {
     expect(urlregex.test(url)).toBeTruthy()
   })
 
-  test('scrape returns 120 property urls of expected type', async () => {
+  test('scrape returns 240 property urls of expected type', async () => {
     const properties = await scrape()
     const urls = properties.map(p => p.url)
     const faultyUrl = urls.find(url => !urlregex.test(url))
@@ -114,7 +114,7 @@ describe('cityexpert scraper', () => {
     expect(properties[0]).toEqual(expectedPropertyObject)
   })
 
-  test('scrape returns 120 properties of valid dates', async () => {
+  test('scrape returns 240 properties of valid dates', async () => {
     const properties = await scrape()
 
     expect(properties.some(p => p.validFrom > new Date())).toBeFalsy()

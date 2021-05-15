@@ -4,6 +4,7 @@ const { JSDOM, VirtualConsole } = require('jsdom')
 const URL = require('../../utils/url')
 const types = require('../../utils/types')
 const geofire = require('geofire-common')
+const firestore = require('firebase-admin').firestore
 
 async function scrape(type) {
   let promises;
@@ -41,8 +42,18 @@ async function scrape(type) {
 
 async function scrapeList(url, type) {
   const list = await getList(url)
-  const settledPromises = await Promise.allSettled(list.map(propertyUrl => scrapeItem(`${URL.halooglasi.baseUrl}${propertyUrl}`, type)))
+  const filteredList = await module.exports.filterList(list) // so we can mock this
+  const settledPromises = await Promise.allSettled(filteredList.map(property => scrapeItem(`${URL.halooglasi.baseUrl}${property.url}`, type)))
   return settledPromises.filter(p => p.status === 'fulfilled').map(p => p.value)
+}
+
+async function filterList(list) {
+  const propertyIds = list.map(p => p.id)
+  const properties = await Promise.all(propertyIds.map(propertyId => firestore().collection('properties').doc(propertyId).get()))
+
+  return list.filter((property, i) => {
+    return !properties[i].exists || properties[i].data().price !== property.price
+  })
 }
 
 async function getList(url) {
@@ -50,15 +61,24 @@ async function getList(url) {
   const { data } = response
   if (response.status !== 200) throw new Error(`Status code ${response.status} ${response.statusText} for url: ${url}`)
 
-  const urls = []
-
+  const properties = []
   const $ = cheerio.load(data)
 
-  $('h3.product-title > a').each((_i, el) => {
-    urls.push($(el).attr('href'))
+  $('div.product-item').each((_i, el) => {
+    const element = cheerio.load(el)
+    const url = element('div > h3.product-title > a').attr('href')
+    const price = element('div.central-feature > span').attr('data-value')
+
+    if (url) {
+      properties.push({
+        id: el.attribs.id,
+        url,
+        price: parseInt(price?.replace(/\./g, '')), // price is a string (e.g. '2.000.000')
+      })
+    }
   })
 
-  return urls
+  return properties
 }
 
 async function scrapeItem(url, type) {
@@ -76,7 +96,7 @@ async function scrapeItem(url, type) {
   const { window } = dom
   const { Id, Title, ValidFrom, GeoLocationRPT, CategoryNames, TotalViews, AveragePriceBySurfaceValue, AveragePriceBySurfaceLink, cena_d_unit_s, kvadratura_d_unit_s, broj_soba_s, spratnost_s, povrsina_placa_d, grad_s, lokacija_s, mikrolokacija_s, kvadratura_d, oglasivac_nekretnine_s, ulica_t, cena_d, povrsina_placa_d_unit_s, ImageURLs, povrsina_d, povrsina_d_unit_s }
     = window.QuidditaEnvironment?.CurrentClassified
-  const { AdKindCode } = window.QuidditaEnvironment?.CurrentClassifiedInstances[0]
+  const { AdKindCode } = window.QuidditaEnvironment?.CurrentClassifiedInstances[0] ?? { AdKindCode: 'Outdated' }
   const [lat, lng] = GeoLocationRPT.split(',')
   const geoLocation = [parseFloat(lat), parseFloat(lng)]
   const geohash = geofire.geohashForLocation(geoLocation)
@@ -109,7 +129,7 @@ async function scrapeItem(url, type) {
     price: cena_d,
     priceUnit: cena_d_unit_s,
     pricePerSqm: Math.floor(cena_d / kvadratura_d),
-    pricePerPlotSqm: Math.floor(cena_d / povrsina_placa_d ?? povrsina_d),
+    pricePerPlotSqm: Math.floor(cena_d / (povrsina_placa_d ?? povrsina_d)),
     avaragePricePerSqm: AveragePriceBySurfaceValue,
     avaragePricePerSqmLink: AveragePriceBySurfaceLink,
     advertiser: oglasivac_nekretnine_s,
@@ -120,5 +140,6 @@ async function scrapeItem(url, type) {
 
 module.exports.scrapeItem = scrapeItem
 module.exports.getList = getList
+module.exports.filterList = filterList
 module.exports.scrapeList = scrapeList
 module.exports.scrape = scrape
