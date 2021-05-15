@@ -32,6 +32,7 @@ Welcome to Gnezdo!
 /reset - reset ALL search parameters.
 /type {types seperated by space} - available: [house-sale, apartment-sale, apartment-rent, other-sale] (other means room, apartmant in house, etc.). Default all. (e.g. /type house-sale apartmant-sale)
 Send custom location to search in the set radius around sent locations.
+/img - to toggle receiving images with properties.
 `
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ TELEGRAM ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -113,6 +114,13 @@ bot.command('/type', async (ctx) => {
   return ctx.reply(`Types set to ${types}`)
 })
 
+bot.command('/img', async (ctx) => {
+  const chatId = ctx.message.chat.id
+  const user = getUser(chatId)
+  await updateCurrentUser(chatId, { img: !user.img })
+  return ctx.reply(`Receiving images set to ${!user.img}`)
+})
+
 // admin commands
 bot.command('/stop', async (ctx) => {
   if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
@@ -156,7 +164,7 @@ async function handleProperty(property) {
   const promises = []
 
   for (const chatId in users) {
-    const { locations, radius, active, priceLimit, types } = users[chatId]
+    const { locations, radius, active, priceLimit, types, img } = users[chatId]
     if (!active) {
       functions.logger.log(`Skipping user: ${chatId} - not active`)
       continue
@@ -170,7 +178,7 @@ async function handleProperty(property) {
       const msg = `${property.title}\nBroj pregleda: ${property.totalViews}\nCena: ${property.price} ${property.priceUnit}\n${property.sqm ? `Kvadratura: ${property.sqm} ${property.sqmUnit}\n` : ''}${property.pricePerSqm ? `Cena po kvadratu: ${property.pricePerSqm} ${property.priceUnit}/${property.sqmUnit}\n` : ''}${property.plot ? `Površina placa: ${property.plot} ${property.plotUnit}\n` : ''}${property.pricePerPlotSqm ? `Cena po aru: ${property.pricePerPlotSqm} ${property.priceUnit}/${property.plotUnit}\n` : ''}${property.city} - ${property.location} - ${property.microlocation}\n${property.url}`
       promises.push(bot.telegram.sendMessage(chatId, msg))
       const media = property.imageURLs?.map(url => ({ type: 'photo', media: url }))
-      if (media) promises.push(bot.telegram.sendMediaGroup(chatId, media))
+      if (media && img) promises.push(bot.telegram.sendMediaGroup(chatId, media))
     }
   }
 
@@ -349,6 +357,10 @@ async function updateCurrentUser(chatId, user) {
 
 async function getUsers() {
   return (await firestore.doc(usersDocPath).get()).data()
+}
+
+async function getUser(chatId) {
+  return (await getUser())[chatId]
 }
 
 async function addUserLocation(chatId, location) {
