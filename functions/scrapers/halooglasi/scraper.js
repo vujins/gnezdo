@@ -108,7 +108,7 @@ async function scrapeItem(url, type) {
 
   return {
     url,
-    imageURLs: ImageURLs,
+    imageURLs: ImageURLs?.map(url => URL.halooglasi.baseImgUrl + url),
     type,
     id: Id,
     title: Title,

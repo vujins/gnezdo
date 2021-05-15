@@ -169,6 +169,8 @@ async function handleProperty(property) {
 
       const msg = `${property.title}\nBroj pregleda: ${property.totalViews}\nCena: ${property.price} ${property.priceUnit}\n${property.sqm ? `Kvadratura: ${property.sqm} ${property.sqmUnit}\n` : ''}${property.pricePerSqm ? `Cena po kvadratu: ${property.pricePerSqm} ${property.priceUnit}/${property.sqmUnit}\n` : ''}${property.plot ? `Površina placa: ${property.plot} ${property.plotUnit}\n` : ''}${property.pricePerPlotSqm ? `Cena po aru: ${property.pricePerPlotSqm} ${property.priceUnit}/${property.plotUnit}\n` : ''}${property.city} - ${property.location} - ${property.microlocation}\n${property.url}`
       promises.push(bot.telegram.sendMessage(chatId, msg))
+      const media = property.imageURLs?.map(url => ({ type: 'photo', media: url }))
+      if (media) promises.push(bot.telegram.sendMediaGroup(chatId, media))
     }
   }
 
@@ -191,9 +193,10 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
 //         srytek82hu: [44.585291, 20.534001],
 //       },
 //       priceLimit: 200000,
-//       radius: 100,
-//       types: ['house-sale', 'land-sale']
+//       radius: 5,
+//       // types: ['house-sale', 'land-sale']
 //       // types: ['apartment-sale']
+//       types: ['land-sale']
 //     })
 
 //     await handleScheduledScrapeJob()

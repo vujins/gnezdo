@@ -1,6 +1,7 @@
 const types = require('./types');
 
 const halooglasiBaseUrl = 'https://www.halooglasi.com';
+const halooglasiBaseImgUrl = 'https://img.halooglasi.com';
 const halooglasiBaseNest = halooglasiBaseUrl + '/nekretnine';
 
 const halooglasiSale = halooglasiBaseNest + '/prodaja-';
@@ -18,6 +19,7 @@ const halooglasiLandRent = halooglasiLandRentRent + 'zemljista';
 const url = Object.freeze({
   halooglasi: {
     baseUrl: halooglasiBaseUrl,
+    baseImgUrl: halooglasiBaseImgUrl,
     [types.houseSale]: halooglasiHouseSale,
     [types.houseRent]: halooglasiHouseRent,
     [types.apartmentSale]: halooglasiApartmentSale,
