@@ -116,7 +116,7 @@ bot.command('/type', async (ctx) => {
 
 bot.command('/img', async (ctx) => {
   const chatId = ctx.message.chat.id
-  const user = getUser(chatId)
+  const user = await getUser(chatId)
   await updateCurrentUser(chatId, { img: !user.img })
   return ctx.reply(`Receiving images set to ${!user.img}`)
 })
@@ -141,8 +141,6 @@ bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
 exports.registrationBot = functions.runWith({ memory: '256MB', maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
-  const { hostname, subdomains, originalUrl, url, ip, ips, body, headers } = request;
-  functions.logger.info(`Incoming message: ${JSON.stringify({ hostname, subdomains, originalUrl, url, ip, ips, body, headers })}`)
   return bot.handleUpdate(request.body, response)
 })
 
@@ -361,7 +359,7 @@ async function getUsers() {
 }
 
 async function getUser(chatId) {
-  return (await getUser())[chatId]
+  return (await getUsers())[chatId]
 }
 
 async function addUserLocation(chatId, location) {
