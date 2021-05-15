@@ -140,9 +140,9 @@ bot.command('/broadcast', async (ctx) => {
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
-exports.registrationBot = functions.runWith({ memory: '128MB', maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
-  const { hostname, subdomains, originalUrl, url, ip, ips, body } = request;
-  functions.logger.info(`Incoming message: ${JSON.stringify({ hostname, subdomains, originalUrl, url, ip, ips, body })}`)
+exports.registrationBot = functions.runWith({ memory: '256MB', maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
+  const { hostname, subdomains, originalUrl, url, ip, ips, body, headers } = request;
+  functions.logger.info(`Incoming message: ${JSON.stringify({ hostname, subdomains, originalUrl, url, ip, ips, body, headers })}`)
   return bot.handleUpdate(request.body, response)
 })
 
@@ -272,7 +272,7 @@ async function scrapeJob(lastScrapeDate, lastScrapeDateForType, type, nextScrape
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.stopBilling = functions.runWith({ memory: '128MB', maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
+exports.stopBilling = functions.runWith({ memory: '256MB', maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
     functions.logger.info(`Received billing data: ${JSON.stringify(billingData)}`)
