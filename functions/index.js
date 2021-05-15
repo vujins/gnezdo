@@ -132,14 +132,14 @@ bot.command('/broadcast', async (ctx) => {
 bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
-exports.registrationBot = functions.runWith({ maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
-  functions.logger.info(`Incoming message: ${JSON.stringify(request.body)}`)
+exports.registrationBot = functions.runWith({ memory: '128MB', maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
+  functions.logger.info(`Incoming message: ${JSON.stringify(request)}`)
   return bot.handleUpdate(request.body, response)
 })
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ NOTIFICATIONS ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.notifications = functions.runWith({ maxInstances: 1 }).region('europe-west1').firestore.document('properties/{docId}').onWrite(change => {
+exports.notifications = functions.runWith({ memory: '256MB', maxInstances: 1 }).region('europe-west1').firestore.document('properties/{docId}').onWrite(change => {
   if (!change.after.exists) { // if property is deleted
     functions.logger.info(`Skipping property ${change.before.data().id}. Reason: deleted!`)
     return Promise.resolve()
@@ -260,7 +260,7 @@ async function scrapeJob(lastScrapeDate, lastScrapeDateForType, type, nextScrape
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~ BILLING ~~~~~~~~~~~~~~~~~~~~~~~~
 
-exports.stopBilling = functions.runWith({ maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
+exports.stopBilling = functions.runWith({ memory: '128MB', maxInstances: 1 }).region('europe-west1').pubsub.topic('billing').onPublish(async (message) => {
   try {
     const billingData = message.json
     functions.logger.info(`Received billing data: ${JSON.stringify(billingData)}`)
