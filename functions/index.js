@@ -141,7 +141,8 @@ bot.hears('hi', (ctx) => ctx.reply('Hello there!'))
 
 // handle all telegram updates with HTTPs trigger
 exports.registrationBot = functions.runWith({ memory: '128MB', maxInstances: 1 }).region('europe-west1').https.onRequest((request, response) => {
-  functions.logger.info(`Incoming message: ${JSON.stringify(request)}`)
+  const { hostname, subdomains, originalUrl, url, ip, ips, body } = request;
+  functions.logger.info(`Incoming message: ${JSON.stringify({ hostname, subdomains, originalUrl, url, ip, ips, body })}`)
   return bot.handleUpdate(request.body, response)
 })
 
