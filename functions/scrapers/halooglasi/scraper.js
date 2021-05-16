@@ -15,6 +15,7 @@ async function scrape(type) {
         scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${1}`, types.houseSale),
         scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${2}`, types.houseSale),
         scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${3}`, types.houseSale),
+        scrapeList(`${URL.halooglasi[types.houseSale]}/beograd?cena_d_to=${500000}&cena_d_unit=4&page=${4}`, types.houseSale),
       ]
       break
     }
@@ -23,6 +24,7 @@ async function scrape(type) {
         scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${1}`, types.apartmentSale),
         scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${2}`, types.apartmentSale),
         scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${3}`, types.apartmentSale),
+        scrapeList(`${URL.halooglasi[types.apartmentSale]}/novi-sad?cena_d_to=${100000}&cena_d_unit=4&page=${4}`, types.apartmentSale),
       ]
       break
     }

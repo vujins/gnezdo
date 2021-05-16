@@ -16,7 +16,7 @@ const billing = google_billing.cloudbilling('v1')
 const PROJECT_ID = process.env.GCLOUD_PROJECT
 const PROJECT_NAME = `projects/${PROJECT_ID}`
 
-const adminChatId = 838164104
+// const adminChatId = 838164104
 
 // firestore paths
 const usersDocPath = '/scraping/users'
@@ -123,16 +123,19 @@ bot.command('/img', async (ctx) => {
 
 // admin commands
 bot.command('/stop', async (ctx) => {
-  if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
+  const chatId = ctx.message.chat.id
+  const users = await getUsers()
+  if (!users[chatId].admin) return ctx.reply(`You are not the admin!`)
   const rez = await updateScrapingInfo({ active: false })
   return ctx.reply(`Master switch turned off! ${rez}`)
 })
 
 bot.command('/broadcast', async (ctx) => {
-  if (ctx.message.chat.id !== adminChatId) return ctx.reply(`You are not the admin!`)
+  const chatId = ctx.message.chat.id
+  const users = await getUsers()
+  if (!users[chatId].admin) return ctx.reply(`You are not the admin!`)
   const args = ctx.message.text.split(' ')
   const msg = args.slice(1).join(' ')
-  const users = await getUsers()
   return Promise.all(Object.keys(users).map(chatId => bot.telegram.sendMessage(chatId, msg)))
 })
 
@@ -176,8 +179,8 @@ async function handleProperty(property) {
 
       const msg = `${property.title}\nBroj pregleda: ${property.totalViews}\nCena: ${property.price} ${property.priceUnit}\n${property.sqm ? `Kvadratura: ${property.sqm} ${property.sqmUnit}\n` : ''}${property.pricePerSqm ? `Cena po kvadratu: ${property.pricePerSqm} ${property.priceUnit}/${property.sqmUnit}\n` : ''}${property.plot ? `Površina placa: ${property.plot} ${property.plotUnit}\n` : ''}${property.pricePerPlotSqm ? `Cena po aru: ${property.pricePerPlotSqm} ${property.priceUnit}/${property.plotUnit}\n` : ''}${property.city} - ${property.location} - ${property.microlocation}\n${property.url}`
       promises.push(bot.telegram.sendMessage(chatId, msg))
-      const media = property.imageURLs?.map(url => ({ type: 'photo', media: url }))
-      if (media && img) promises.push(bot.telegram.sendMediaGroup(chatId, media))
+      const media = property.imageURLs?.slice(0, 10)?.map(url => ({ type: 'photo', media: url }))
+      if (media?.length && img) promises.push(bot.telegram.sendMediaGroup(chatId, media))
     }
   }
 
@@ -193,17 +196,19 @@ exports.scheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 
 // exports.fakeScheduledScrapeJob = functions.runWith({ memory: '1GB', maxInstances: 1 }).region('europe-west1').https.onRequest(async (req, res) => {
 //   try {
 //     const d = admin.firestore.Timestamp.fromDate(new Date("2021-04-01T12:00:45.36"))
-//     await updateScrapingInfo({ active: true, validFrom: { 'apartment-sale': d, 'house-sale': d, 'land-sale': d }, lastScrape: d, nextScrape: 2 })
+//     await updateScrapingInfo({ active: true, validFrom: { 'apartment-sale': d, 'house-sale': d, 'land-sale': d }, lastScrape: d, nextScrape: 0 })
 //     await updateCurrentUser(838164104, {
 //       active: true,
 //       locations: {
 //         srytek82hu: [44.585291, 20.534001],
+//         srytek82hi: [44.7822, 20.4495],
 //       },
-//       priceLimit: 200000,
-//       radius: 5,
-//       // types: ['house-sale', 'land-sale']
+//       priceLimit: 5000000,
+//       radius: 300,
+//       types: ['house-sale', 'land-sale'],
 //       // types: ['apartment-sale']
-//       types: ['land-sale']
+//       // types: ['land-sale']
+//       img: true,
 //     })
 
 //     await handleScheduledScrapeJob()
