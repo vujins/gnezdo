@@ -33,6 +33,7 @@ async function scrape(type) {
         scrapeList(`${URL.halooglasi[types.landSale]}/beograd?cena_d_to=${100000}&cena_d_unit=4&page=${1}`, types.landSale),
         scrapeList(`${URL.halooglasi[types.landSale]}/beograd?cena_d_to=${100000}&cena_d_unit=4&page=${2}`, types.landSale),
         scrapeList(`${URL.halooglasi[types.landSale]}/beograd?cena_d_to=${100000}&cena_d_unit=4&page=${3}`, types.landSale),
+        scrapeList(`${URL.halooglasi[types.landSale]}/beograd?cena_d_to=${100000}&cena_d_unit=4&page=${4}`, types.landSale),
       ]
       break
     }
